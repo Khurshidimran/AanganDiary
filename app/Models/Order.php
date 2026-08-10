@@ -1,0 +1,109 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\HasUuid;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+#[Fillable([
+    'shopify_order_id', 'shopify_order_number', 'customer_name', 'customer_email', 'customer_phone',
+    'billing_address', 'shipping_address', 'order_status', 'payment_status', 'delivery_status',
+    'currency', 'subtotal', 'tax_total', 'shipping_total', 'total', 'total_outstanding', 'notes', 'shopify_created_at',
+    'rider_id', 'assigned_at', 'picked_up_at', 'delivered_at', 'cod_amount', 'cod_collected',
+    'delivery_failure_reason', 'pod_photo_path', 'pod_signature_path', 'pod_captured_at',
+])]
+class Order extends Model
+{
+    use HasUuid, SoftDeletes;
+
+    public const ORDER_STATUS_PENDING = 'pending';
+    public const ORDER_STATUS_CONFIRMED = 'confirmed';
+    public const ORDER_STATUS_CANCELLED = 'cancelled';
+
+    public const PAYMENT_STATUS_PENDING = 'pending';
+    public const PAYMENT_STATUS_PAID = 'paid';
+    public const PAYMENT_STATUS_PARTIALLY_PAID = 'partially_paid';
+    public const PAYMENT_STATUS_REFUNDED = 'refunded';
+
+    public const DELIVERY_STATUS_PENDING = 'pending';
+    public const DELIVERY_STATUS_ASSIGNED = 'assigned';
+    public const DELIVERY_STATUS_PICKED_UP = 'picked_up';
+    public const DELIVERY_STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
+    public const DELIVERY_STATUS_DELIVERED = 'delivered';
+    public const DELIVERY_STATUS_FAILED = 'failed';
+    public const DELIVERY_STATUS_RETURNED = 'returned';
+
+    protected function casts(): array
+    {
+        return [
+            'billing_address' => 'array',
+            'shipping_address' => 'array',
+            'subtotal' => 'decimal:2',
+            'tax_total' => 'decimal:2',
+            'shipping_total' => 'decimal:2',
+            'total' => 'decimal:2',
+            'total_outstanding' => 'decimal:2',
+            'shopify_created_at' => 'datetime',
+            'assigned_at' => 'datetime',
+            'picked_up_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'cod_amount' => 'decimal:2',
+            'cod_collected' => 'boolean',
+            'pod_captured_at' => 'datetime',
+        ];
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function rider(): BelongsTo
+    {
+        return $this->belongsTo(RiderProfile::class, 'rider_id');
+    }
+
+    public function canBeConfirmed(): bool
+    {
+        return $this->order_status === self::ORDER_STATUS_PENDING;
+    }
+
+    public function canBeCancelled(): bool
+    {
+        return in_array($this->order_status, [self::ORDER_STATUS_PENDING, self::ORDER_STATUS_CONFIRMED], true);
+    }
+
+    public function canBeAssigned(): bool
+    {
+        return $this->order_status === self::ORDER_STATUS_CONFIRMED
+            && in_array($this->delivery_status, [self::DELIVERY_STATUS_PENDING, self::DELIVERY_STATUS_ASSIGNED], true);
+    }
+
+    public function canBeMarkedPickedUp(): bool
+    {
+        return $this->delivery_status === self::DELIVERY_STATUS_ASSIGNED;
+    }
+
+    public function canBeMarkedOutForDelivery(): bool
+    {
+        return $this->delivery_status === self::DELIVERY_STATUS_PICKED_UP;
+    }
+
+    public function canBeMarkedDelivered(): bool
+    {
+        return $this->delivery_status === self::DELIVERY_STATUS_OUT_FOR_DELIVERY;
+    }
+
+    public function canBeMarkedFailedOrReturned(): bool
+    {
+        return in_array($this->delivery_status, [
+            self::DELIVERY_STATUS_ASSIGNED,
+            self::DELIVERY_STATUS_PICKED_UP,
+            self::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+        ], true);
+    }
+}

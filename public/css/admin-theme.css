@@ -1,0 +1,142 @@
+/*
+ * Aangan Dairy admin theme.
+ * Palette pulled from the customer storefront (aangandairy.com):
+ * deep green primary, teal accent, warm cream surfaces.
+ */
+:root {
+    --aangan-green: #2a4125;
+    --aangan-green-dark: #1c2e19;
+    --aangan-teal: #108474;
+    --aangan-teal-dark: #0c6459;
+    --aangan-cream: #f6eedb;
+    --aangan-cream-soft: #faf7ee;
+    --aangan-ink: #23291f;
+
+    --bs-primary: var(--aangan-green);
+    --bs-primary-rgb: 42, 65, 37;
+    --bs-link-color: var(--aangan-teal);
+    --bs-link-color-rgb: 16, 132, 116;
+    --bs-link-hover-color: var(--aangan-teal-dark);
+}
+
+body {
+    background-color: var(--aangan-cream-soft);
+    color: var(--aangan-ink);
+}
+
+/* Buttons */
+.btn-primary {
+    --bs-btn-bg: var(--aangan-green);
+    --bs-btn-border-color: var(--aangan-green);
+    --bs-btn-hover-bg: var(--aangan-green-dark);
+    --bs-btn-hover-border-color: var(--aangan-green-dark);
+    --bs-btn-active-bg: var(--aangan-green-dark);
+    --bs-btn-active-border-color: var(--aangan-green-dark);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--aangan-teal);
+    border-color: var(--aangan-teal);
+}
+
+/* Guest (auth) layout */
+.auth-shell {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    background: linear-gradient(160deg, var(--aangan-green) 0%, var(--aangan-green-dark) 45%, var(--aangan-ink) 100%);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+}
+
+.auth-logo {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    border-radius: 50%;
+    background: #fff;
+    padding: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.auth-card .card {
+    border: none;
+    border-radius: 0.9rem;
+}
+
+/* Admin shell */
+#sidebar {
+    width: 250px;
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--aangan-green) 0%, var(--aangan-green-dark) 100%);
+}
+
+#sidebar .brand {
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+#sidebar .brand img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    border-radius: 50%;
+    background: #fff;
+    padding: 3px;
+}
+
+#sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.75);
+    border-radius: 0.5rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+#sidebar .nav-link.active,
+#sidebar .nav-link:hover {
+    color: #fff;
+    background-color: rgba(16, 132, 116, 0.55);
+}
+
+#sidebar .nav-link.active {
+    background-color: var(--aangan-teal);
+}
+
+#sidebar .nav-section-title {
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.75rem 0.75rem 0.25rem;
+}
+
+main {
+    flex: 1;
+    min-width: 0;
+}
+
+.topbar {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(42, 65, 37, 0.12);
+}
+
+.card {
+    border: 1px solid rgba(42, 65, 37, 0.08);
+    border-radius: 0.75rem;
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(42, 65, 37, 0.08);
+}
+
+.badge.bg-secondary {
+    background-color: var(--aangan-teal) !important;
+}
+
+.table thead {
+    background-color: var(--aangan-cream);
+}

@@ -1,0 +1,289 @@
+{
+  "info": {
+    "name": "Aangan Dairy - Rider Mobile App API",
+    "description": "Token-based (Laravel Sanctum) API for the rider delivery mobile app. Every request except Login requires the Bearer token returned by Login. The Login request's test script automatically saves the token into the `token` collection variable, so all other requests work immediately after a successful login.\n\nBase URL is controlled by the `base_url` collection variable (defaults to a local dev server — update it to your environment).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "order_id", "value": "", "type": "string", "description": "Set this to a delivery's `id` (from List Deliveries) to test the delivery-detail and status-transition requests." }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ali.rider@example.com\",\n  \"password\": \"RiderPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "login"]
+            },
+            "description": "Exchanges rider credentials for a bearer token. Rejects accounts that aren't riders (422) and inactive rider accounts (422). Rate-limited to 5 attempts/minute per IP.\n\nResponse:\n```json\n{\n  \"token\": \"1|abcdef...\",\n  \"rider\": {\n    \"id\": \"uuid\",\n    \"name\": \"Ali Rider\",\n    \"phone\": \"03001234567\",\n    \"zone\": \"Gulberg\",\n    \"status\": \"active\",\n    \"wallet_balance\": 260.0\n  }\n}\n```"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('token', json.token);",
+                  "    console.log('Saved token to collection variable.');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "logout"]
+            },
+            "description": "Revokes the current token. Response: `{\"message\": \"Logged out.\"}`. The token will no longer authenticate any request after this."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deliveries",
+      "item": [
+        {
+          "name": "List Deliveries",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries?status=assigned",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "assigned",
+                  "description": "Optional. Filter by delivery_status: pending, assigned, picked_up, out_for_delivery, delivered, failed, returned. Omit to see all orders ever assigned to you.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paginated list of orders assigned to the authenticated rider, newest assignment first. 20 per page.\n\nResponse is a standard Laravel paginated resource: `{\"data\": [...orders], \"links\": {...}, \"meta\": {...}}`. See the Wallet/Delivery Detail request for the order object shape."
+          }
+        },
+        {
+          "name": "Get Delivery Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries", "{{order_id}}"]
+            },
+            "description": "Single order with its line items. Returns 403 if this order isn't assigned to you.\n\n```json\n{\n  \"data\": {\n    \"id\": \"uuid\",\n    \"order_number\": \"#1001\",\n    \"customer_name\": \"Ayesha Khan\",\n    \"customer_phone\": \"0300-1112233\",\n    \"shipping_address\": {\n      \"address1\": \"House 12, Street 5\",\n      \"city\": \"Lahore\",\n      \"province\": \"Punjab\",\n      \"country\": \"Pakistan\",\n      \"zip\": \"54000\"\n    },\n    \"delivery_status\": \"assigned\",\n    \"payment_status\": \"pending\",\n    \"currency\": \"PKR\",\n    \"total\": 360.0,\n    \"cod_amount\": 360.0,\n    \"cod_collected\": false,\n    \"assigned_at\": \"2026-08-05T05:41:32+00:00\",\n    \"picked_up_at\": null,\n    \"delivered_at\": null,\n    \"delivery_failure_reason\": null,\n    \"pod_photo_url\": null,\n    \"pod_signature_url\": null,\n    \"items\": [\n      {\n        \"id\": \"uuid\",\n        \"product_name\": \"Fresh Milk - 1 Liter\",\n        \"sku\": \"MILK-1L\",\n        \"quantity\": 2,\n        \"unit_price\": 130.0,\n        \"total_price\": 260.0\n      }\n    ]\n  }\n}\n```"
+          }
+        },
+        {
+          "name": "Mark Picked Up",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries/{{order_id}}/picked-up",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries", "{{order_id}}", "picked-up"]
+            },
+            "description": "Transitions delivery_status: assigned → picked_up. Returns the updated order (same shape as Get Delivery Detail). 422 if the order isn't currently 'assigned'. 403 if it's not your delivery."
+          }
+        },
+        {
+          "name": "Mark Out For Delivery",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries/{{order_id}}/out-for-delivery",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries", "{{order_id}}", "out-for-delivery"]
+            },
+            "description": "Transitions delivery_status: picked_up → out_for_delivery. 422 if the order hasn't been picked up yet."
+          }
+        },
+        {
+          "name": "Bulk Mark Picked Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_ids\": [\n    \"{{order_id}}\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries/picked-up/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries", "picked-up", "bulk"]
+            },
+            "description": "Marks multiple deliveries picked up in one call — for when you collect a batch of parcels from the warehouse at once instead of one at a time. `order_ids` is a required array (min 1) of delivery ids.\n\nEvery submitted id is accounted for in the response, never silently dropped: ids you don't own, ids that don't exist, and ids that aren't currently `assigned` all land in `skipped` with a reason instead of failing the whole request.\n\n```json\n{\n  \"succeeded\": [\n    { \"id\": \"uuid\", \"order_number\": \"#1001\", \"delivery_status\": \"picked_up\", \"...\": \"...(full order object, same shape as Get Delivery Detail)\" }\n  ],\n  \"skipped\": [\n    { \"id\": \"uuid\", \"reason\": \"currently delivered\" },\n    { \"id\": \"uuid\", \"reason\": \"not found or not assigned to you\" }\n  ]\n}\n```\n\nA 200 is returned even if every id was skipped — check `skipped` rather than relying on the HTTP status to know what happened per order."
+          }
+        },
+        {
+          "name": "Bulk Mark Out For Delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_ids\": [\n    \"{{order_id}}\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries/out-for-delivery/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries", "out-for-delivery", "bulk"]
+            },
+            "description": "Same shape and behavior as Bulk Mark Picked Up, but transitions `picked_up` → `out_for_delivery`. Use this when you're leaving the warehouse with a batch of already-picked-up parcels, instead of marking each one out-for-delivery individually.\n\nResponse shape is identical: `{\"succeeded\": [...full order objects...], \"skipped\": [{\"id\": ..., \"reason\": ...}]}`."
+          }
+        },
+        {
+          "name": "Mark Delivered (with Proof of Delivery)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "description": "Optional. Delivery photo. image/jpeg or image/png, max 5MB.",
+                  "src": []
+                },
+                {
+                  "key": "signature",
+                  "type": "file",
+                  "description": "Optional. Customer signature image (e.g. exported PNG from a signature-pad canvas), max 2MB.",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries/{{order_id}}/delivered",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries", "{{order_id}}", "delivered"]
+            },
+            "description": "Transitions delivery_status: out_for_delivery → delivered. Both `photo` and `signature` are optional and independent — send either, both, or neither.\n\nSide effects (automatic, no client action needed):\n- If the order has `cod_amount` > 0, it's marked `cod_collected: true` and credited to your wallet balance (you now owe the company that cash).\n- Your per-delivery earning rate is credited to your wallet (reduces what you owe / increases what the company owes you).\n\n422 if the order isn't currently 'out_for_delivery'."
+          }
+        },
+        {
+          "name": "Mark Failed",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer not available at address\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries/{{order_id}}/failed",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries", "{{order_id}}", "failed"]
+            },
+            "description": "Marks a delivery attempt as failed (customer unreachable, refused, wrong address, etc.). `reason` is required, max 255 chars. Valid from assigned, picked_up, or out_for_delivery. Does not release allocated stock — a dispatcher can reassign/retry, or mark it 'returned' from the admin dashboard once goods are physically back at the warehouse."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Get Wallet",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/wallet",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "wallet"]
+            },
+            "description": "Your current wallet balance and a paginated transaction ledger (20/page, newest first).\n\n**Balance sign convention**: positive = you're holding company money (uncollected COD) that you owe back; negative = the company owes you (credited but unpaid delivery earnings).\n\nTransaction `type` values: `cod_collected`, `cod_settled`, `earning_credited`, `earning_paid`, `adjustment`.\n\n```json\n{\n  \"wallet_balance\": 260.0,\n  \"transactions\": [\n    {\n      \"id\": \"uuid\",\n      \"type\": \"earning_credited\",\n      \"amount\": -100.0,\n      \"balance_after\": 260.0,\n      \"notes\": \"Delivery fee for order #1001\",\n      \"created_at\": \"2026-08-05T05:42:27+00:00\"\n    },\n    {\n      \"id\": \"uuid\",\n      \"type\": \"cod_collected\",\n      \"amount\": 360.0,\n      \"balance_after\": 360.0,\n      \"notes\": \"COD collected for order #1001\",\n      \"created_at\": \"2026-08-05T05:42:27+00:00\"\n    }\n  ],\n  \"meta\": { \"current_page\": 1, \"last_page\": 1, \"total\": 2 }\n}\n```\n\nSettlements (handing cash to the company, getting paid earnings) are recorded by dispatch staff from the admin dashboard, not from this API — they'll show up here as `cod_settled` / `earning_paid` entries."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Location & Device",
+      "item": [
+        {
+          "name": "Send Location Ping",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 31.5204,\n  \"longitude\": 74.3587,\n  \"accuracy_meters\": 12.5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/location",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "location"]
+            },
+            "description": "Records a GPS ping. `latitude` (-90 to 90) and `longitude` (-180 to 180) are required; `accuracy_meters` is optional.\n\nRecommended ping interval: every 30-60 seconds while the app is active/on a delivery — balance battery/data usage against tracking freshness. Every ping is kept (full history), so avoid pinging much more frequently than that.\n\nResponse: `{\"message\": \"Location recorded.\"}`"
+          }
+        },
+        {
+          "name": "Register Device Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"<firebase-cloud-messaging-device-token>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/device-token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "device-token"]
+            },
+            "description": "Registers/updates this device's Firebase Cloud Messaging token so the server can push 'new delivery assigned' notifications. Call this after login and whenever Firebase issues a new/refreshed token (standard FCM token-rotation handling on the client SDK).\n\nResponse: `{\"message\": \"Device token registered.\"}`"
+          }
+        }
+      ]
+    }
+  ]
+}

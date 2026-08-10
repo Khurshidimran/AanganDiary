@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\HasUuid;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+#[Fillable(['product_variant_id', 'warehouse_id', 'batch_number', 'quantity', 'expiry_date'])]
+class StockBalance extends Model
+{
+    use HasUuid;
+
+    protected function casts(): array
+    {
+        return [
+            'quantity' => 'decimal:3',
+            'expiry_date' => 'date',
+        ];
+    }
+
+    public function productVariant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+}
