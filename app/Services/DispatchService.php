@@ -100,7 +100,8 @@ class DispatchService
 
         foreach ($orders as $order) {
             if (! $isEligible($order)) {
-                $skipped[] = ['order' => $order, 'reason' => "currently {$order->delivery_status}"];
+                $reason = $order->isCancelled() ? 'cancelled in Shopify' : "currently {$order->delivery_status}";
+                $skipped[] = ['order' => $order, 'reason' => $reason];
 
                 continue;
             }

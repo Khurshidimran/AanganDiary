@@ -99,7 +99,12 @@
                                            class="form-check-input in-progress-checkbox">
                                 </td>
                             @endcan
-                            <td><a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a></td>
+                            <td>
+                                <a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a>
+                                @if ($order->isCancelled())
+                                    <span class="badge bg-danger ms-1">Cancelled in Shopify</span>
+                                @endif
+                            </td>
                             <td>{{ $order->rider?->user->name ?? '—' }}</td>
                             <td>
                                 <span class="badge bg-secondary">{{ str($order->delivery_status)->headline() }}</span>

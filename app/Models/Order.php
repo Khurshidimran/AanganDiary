@@ -85,17 +85,27 @@ class Order extends Model
 
     public function canBeMarkedPickedUp(): bool
     {
-        return $this->delivery_status === self::DELIVERY_STATUS_ASSIGNED;
+        return $this->delivery_status === self::DELIVERY_STATUS_ASSIGNED && ! $this->isCancelled();
     }
 
     public function canBeMarkedOutForDelivery(): bool
     {
-        return $this->delivery_status === self::DELIVERY_STATUS_PICKED_UP;
+        return $this->delivery_status === self::DELIVERY_STATUS_PICKED_UP && ! $this->isCancelled();
     }
 
     public function canBeMarkedDelivered(): bool
     {
-        return $this->delivery_status === self::DELIVERY_STATUS_OUT_FOR_DELIVERY;
+        return $this->delivery_status === self::DELIVERY_STATUS_OUT_FOR_DELIVERY && ! $this->isCancelled();
+    }
+
+    /**
+     * A rider can already be mid-delivery when Shopify cancels the order out
+     * from under them (order_status is updated by the webhook regardless of
+     * delivery progress) — this stops staff from advancing it further.
+     */
+    public function isCancelled(): bool
+    {
+        return $this->order_status === self::ORDER_STATUS_CANCELLED;
     }
 
     public function canBeMarkedFailedOrReturned(): bool
