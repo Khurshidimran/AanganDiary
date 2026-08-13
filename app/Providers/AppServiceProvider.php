@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Role;
 use App\Models\User;
 use App\Policies\RolePolicy;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -26,5 +27,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(fn (User $user, string $ability) => $user->hasRole('Super Admin') ?: null);
 
         Gate::policy(Role::class, RolePolicy::class);
+
+        // The app loads Bootstrap 5 (see layouts/app.blade.php), not Tailwind —
+        // without this, ->links() renders Laravel's default Tailwind markup,
+        // which has no matching CSS here and shows up unstyled/misaligned.
+        Paginator::useBootstrapFive();
     }
 }
