@@ -9,6 +9,7 @@ use App\Models\ShopifySyncLog;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -44,6 +45,8 @@ class ShopifyProductSyncService
      */
     public function importFromPayload(array $payload, ?User $triggeredBy = null): ShopifySyncLog
     {
+        $this->logRawPayload($payload);
+
         $log = ShopifySyncLog::create([
             'sync_type' => ShopifySyncLog::TYPE_PRODUCTS_IMPORT,
             'status' => ShopifySyncLog::STATUS_RUNNING,
@@ -93,6 +96,28 @@ class ShopifyProductSyncService
         }
 
         return $log->fresh();
+    }
+
+    /**
+     * Writes the raw Shopify response to storage/logs/shopify/products-sync-{date}.txt
+     * so a mismatch between what Shopify sent and what got imported can be
+     * diagnosed after the fact — one file per day, appended on every sync run
+     * that day (both live API pulls and file-based imports go through here).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function logRawPayload(array $payload): void
+    {
+        $directory = storage_path('logs/shopify');
+        File::ensureDirectoryExists($directory);
+
+        $path = $directory.'/products-sync-'.now()->format('Y-m-d').'.txt';
+
+        $entry = '=== '.now()->toDateTimeString()." ===\n"
+            .json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+            ."\n\n";
+
+        File::append($path, $entry);
     }
 
     /**
