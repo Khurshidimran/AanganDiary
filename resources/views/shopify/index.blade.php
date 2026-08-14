@@ -43,6 +43,18 @@
                                 <i class="bi bi-cloud-upload"></i> Push Inventory to Shopify
                             </button>
                         </form>
+                        <hr class="my-1">
+                        <form method="POST" action="{{ route('shopify.sync-orders') }}" class="d-flex gap-2">
+                            @csrf
+                            <input type="datetime-local" name="since" class="form-control form-control-sm"
+                                   value="{{ now()->subDay()->format('Y-m-d\TH:i') }}">
+                            <button type="submit" class="btn btn-outline-primary btn-sm text-nowrap" {{ $isConfigured ? '' : 'disabled' }}>
+                                <i class="bi bi-arrow-repeat"></i> Sync Orders
+                            </button>
+                        </form>
+                        <div class="small text-muted">
+                            Pulls any order created or updated since the date/time above — use this to catch up after downtime. Safe to run repeatedly: existing orders are updated in place, never duplicated.
+                        </div>
                     @endcan
                 </div>
             </div>

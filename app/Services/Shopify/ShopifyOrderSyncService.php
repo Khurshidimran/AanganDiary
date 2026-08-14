@@ -4,7 +4,11 @@ namespace App\Services\Shopify;
 
 use App\Models\Order;
 use App\Models\ProductVariant;
+use App\Models\ShopifySyncLog;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Upserts a local Order (+ its OrderItems) from a Shopify order webhook payload.
@@ -24,6 +28,10 @@ class ShopifyOrderSyncService
         'pending' => Order::PAYMENT_STATUS_PENDING,
         'authorized' => Order::PAYMENT_STATUS_PENDING,
     ];
+
+    public function __construct(private readonly ShopifyClient $client)
+    {
+    }
 
     /**
      * @param  array<string, mixed>  $payload
@@ -87,6 +95,76 @@ class ShopifyOrderSyncService
 
             return $order->fresh('items');
         });
+    }
+
+    /**
+     * Manual catch-up sync for when webhooks were missed (e.g. server downtime) —
+     * pulls orders directly from Shopify's Admin API and runs each one through the
+     * same sync() upsert used by the webhook path. Because sync() keys on
+     * shopify_order_id via firstOrNew, re-pulling an order that's already in the
+     * database just updates it in place rather than creating a duplicate — the
+     * same guarantee the webhook path already relies on, not new dedup logic.
+     *
+     * status=any is used (Shopify's default excludes cancelled/closed orders) so
+     * a cancellation that happened during the downtime is also caught.
+     */
+    public function pullFromShopify(?Carbon $since = null, ?User $triggeredBy = null): ShopifySyncLog
+    {
+        $log = ShopifySyncLog::create([
+            'sync_type' => ShopifySyncLog::TYPE_ORDERS_PULL,
+            'status' => ShopifySyncLog::STATUS_RUNNING,
+            'started_at' => now(),
+            'triggered_by' => $triggeredBy?->id,
+        ]);
+
+        $processed = 0;
+        $created = 0;
+        $updated = 0;
+        $failed = 0;
+        $errors = [];
+
+        try {
+            $response = $this->client->get('orders.json', array_filter([
+                'status' => 'any',
+                'limit' => 250,
+                'updated_at_min' => $since?->toIso8601String(),
+            ]));
+
+            foreach ($response['orders'] ?? [] as $orderPayload) {
+                $processed++;
+
+                try {
+                    $existed = Order::withTrashed()->where('shopify_order_id', (string) $orderPayload['id'])->exists();
+                    $this->sync($orderPayload);
+                    $existed ? $updated++ : $created++;
+                } catch (Throwable $e) {
+                    $failed++;
+                    $errors[] = "Order {$orderPayload['name']}: {$e->getMessage()}";
+                }
+            }
+
+            $log->update([
+                'status' => ShopifySyncLog::STATUS_COMPLETED,
+                'items_processed' => $processed,
+                'items_created' => $created,
+                'items_updated' => $updated,
+                'items_failed' => $failed,
+                'error_summary' => $errors ? implode("\n", $errors) : null,
+                'finished_at' => now(),
+            ]);
+        } catch (Throwable $e) {
+            $log->update([
+                'status' => ShopifySyncLog::STATUS_FAILED,
+                'items_processed' => $processed,
+                'items_created' => $created,
+                'items_updated' => $updated,
+                'items_failed' => $failed,
+                'error_summary' => $e->getMessage(),
+                'finished_at' => now(),
+            ]);
+        }
+
+        return $log->fresh();
     }
 
     /**

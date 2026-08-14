@@ -66,6 +66,7 @@ Route::middleware('auth')->group(function () {
     Route::get('shopify', [ShopifyController::class, 'index'])->name('shopify.index');
     Route::post('shopify/sync-products', [ShopifyController::class, 'syncProducts'])->name('shopify.sync-products');
     Route::post('shopify/push-inventory', [ShopifyController::class, 'pushInventory'])->name('shopify.push-inventory');
+    Route::post('shopify/sync-orders', [ShopifyController::class, 'syncOrders'])->name('shopify.sync-orders');
 
     Route::resource('riders', RiderController::class)->except(['show']);
     Route::get('riders/{rider}/wallet', [RiderWalletController::class, 'show'])->name('riders.wallet');

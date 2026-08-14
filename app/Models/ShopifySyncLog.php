@@ -17,6 +17,7 @@ class ShopifySyncLog extends Model
 
     public const TYPE_PRODUCTS_IMPORT = 'products_import';
     public const TYPE_INVENTORY_PUSH = 'inventory_push';
+    public const TYPE_ORDERS_PULL = 'orders_pull';
 
     public const STATUS_RUNNING = 'running';
     public const STATUS_COMPLETED = 'completed';
