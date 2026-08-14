@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @stack('meta')
     <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
     <link rel="icon" href="{{ asset('images/logo.png') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
@@ -24,6 +25,13 @@
                         <i class="bi bi-speedometer2 me-2"></i> Dashboard
                     </a>
                 </li>
+                @can('monitoring.view')
+                    <li class="nav-item">
+                        <a href="{{ route('monitoring.index') }}" class="nav-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}">
+                            <i class="bi bi-broadcast me-2"></i> Live Monitoring
+                        </a>
+                    </li>
+                @endcan
 
                 @canany(['categories.view', 'brands.view', 'units.view', 'products.view'])
                     <li class="nav-section-title">Catalog</li>
