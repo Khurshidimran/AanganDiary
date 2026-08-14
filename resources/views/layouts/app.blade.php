@@ -20,11 +20,11 @@
                 {{ config('app.name') }}
             </a>
             <ul class="nav nav-pills flex-column gap-1">
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                         <i class="bi bi-speedometer2 me-2"></i> Dashboard
                     </a>
-                </li>
+                </li> -->
                 @can('monitoring.view')
                     <li class="nav-item">
                         <a href="{{ route('monitoring.index') }}" class="nav-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}">
@@ -32,6 +32,32 @@
                         </a>
                     </li>
                 @endcan
+                @can('orders.view')
+                    <li class="nav-section-title">Orders</li>
+                    <li class="nav-item">
+                        <a href="{{ route('orders.index') }}" class="nav-link {{ request()->routeIs('orders.*') ? 'active' : '' }}">
+                            <i class="bi bi-bag-check me-2"></i> Orders
+                        </a>
+                    </li>
+                @endcan
+
+                @canany(['dispatch.view', 'riders.view'])
+                    <li class="nav-section-title">Dispatch</li>
+                    @can('dispatch.view')
+                        <li class="nav-item">
+                            <a href="{{ route('dispatch.index') }}" class="nav-link {{ request()->routeIs('dispatch.*') ? 'active' : '' }}">
+                                <i class="bi bi-signpost-split me-2"></i> Dispatch Board
+                            </a>
+                        </li>
+                    @endcan
+                    @can('riders.view')
+                        <li class="nav-item">
+                            <a href="{{ route('riders.index') }}" class="nav-link {{ request()->routeIs('riders.*') ? 'active' : '' }}">
+                                <i class="bi bi-bicycle me-2"></i> Riders
+                            </a>
+                        </li>
+                    @endcan
+                @endcanany
 
                 @canany(['categories.view', 'brands.view', 'units.view', 'products.view'])
                     <li class="nav-section-title">Catalog</li>
@@ -65,33 +91,6 @@
                         <li class="nav-item">
                             <a href="{{ route('products.report') }}" class="nav-link {{ request()->routeIs('products.report') ? 'active' : '' }}">
                                 <i class="bi bi-file-earmark-bar-graph me-2"></i> Product Report
-                            </a>
-                        </li>
-                    @endcan
-                @endcanany
-
-                @can('orders.view')
-                    <li class="nav-section-title">Orders</li>
-                    <li class="nav-item">
-                        <a href="{{ route('orders.index') }}" class="nav-link {{ request()->routeIs('orders.*') ? 'active' : '' }}">
-                            <i class="bi bi-bag-check me-2"></i> Orders
-                        </a>
-                    </li>
-                @endcan
-
-                @canany(['dispatch.view', 'riders.view'])
-                    <li class="nav-section-title">Dispatch</li>
-                    @can('dispatch.view')
-                        <li class="nav-item">
-                            <a href="{{ route('dispatch.index') }}" class="nav-link {{ request()->routeIs('dispatch.*') ? 'active' : '' }}">
-                                <i class="bi bi-signpost-split me-2"></i> Dispatch Board
-                            </a>
-                        </li>
-                    @endcan
-                    @can('riders.view')
-                        <li class="nav-item">
-                            <a href="{{ route('riders.index') }}" class="nav-link {{ request()->routeIs('riders.*') ? 'active' : '' }}">
-                                <i class="bi bi-bicycle me-2"></i> Riders
                             </a>
                         </li>
                     @endcan
