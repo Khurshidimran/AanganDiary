@@ -7,6 +7,7 @@ use App\Exceptions\WarehouseNotConfiguredException;
 use App\Models\Order;
 use App\Services\AuditLogService;
 use App\Services\OrderFulfillmentService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,14 +25,35 @@ class OrderController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
+        // No date_from/date_to in the query string at all means this is the
+        // first, unfiltered visit — default to the current month. If they're
+        // present but blank, the user explicitly cleared the filter to see
+        // all-time orders, so that's left unbounded rather than re-defaulted.
+        $isDefaultDateRange = ! $request->has('date_from') && ! $request->has('date_to');
+
+        if ($isDefaultDateRange) {
+            $dateFrom = now()->startOfMonth();
+            $dateTo = now()->endOfDay();
+        } else {
+            $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : null;
+            $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : null;
+        }
+
+        $sort = $request->query('sort') === 'asc' ? 'asc' : 'desc';
+        $perPage = in_array((int) $request->query('per_page'), [10, 50, 100], true)
+            ? (int) $request->query('per_page')
+            : 50;
+
         $orders = Order::query()
             ->when($request->filled('order_status'), fn ($q) => $q->where('order_status', $request->query('order_status')))
             ->when($request->filled('delivery_status'), fn ($q) => $q->where('delivery_status', $request->query('delivery_status')))
-            ->latest('shopify_created_at')
-            ->paginate(20)
+            ->when($dateFrom, fn ($q) => $q->where('shopify_created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('shopify_created_at', '<=', $dateTo))
+            ->orderBy('shopify_created_at', $sort)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('orders.index', compact('orders'));
+        return view('orders.index', compact('orders', 'dateFrom', 'dateTo', 'sort', 'perPage', 'isDefaultDateRange'));
     }
 
     public function show(Order $order): View
