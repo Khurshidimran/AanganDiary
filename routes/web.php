@@ -61,7 +61,12 @@ Route::middleware('auth')->group(function () {
     Route::resource('stock-adjustments', StockAdjustmentController::class);
     Route::post('stock-adjustments/{stock_adjustment}/post', [StockAdjustmentController::class, 'post'])->name('stock-adjustments.post');
 
+    // Registered before the orders resource so this literal path takes
+    // priority over the resource's GET orders/{order} wildcard match.
+    Route::get('orders/print-labels', [OrderController::class, 'bulkLabels'])->name('orders.labels.bulk');
+
     Route::resource('orders', OrderController::class)->only(['index', 'show']);
+    Route::get('orders/{order}/label', [OrderController::class, 'label'])->name('orders.label');
     Route::post('orders/{order}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm');
     Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 

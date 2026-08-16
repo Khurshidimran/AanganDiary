@@ -44,16 +44,22 @@ class OrderController extends Controller
             ? (int) $request->query('per_page')
             : 50;
 
-        $orders = Order::query()
+        $query = Order::query()
             ->when($request->filled('order_status'), fn ($q) => $q->where('order_status', $request->query('order_status')))
             ->when($request->filled('delivery_status'), fn ($q) => $q->where('delivery_status', $request->query('delivery_status')))
             ->when($dateFrom, fn ($q) => $q->where('shopify_created_at', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('shopify_created_at', '<=', $dateTo))
-            ->orderBy('shopify_created_at', $sort)
-            ->paginate($perPage)
-            ->withQueryString();
+            ->when($dateTo, fn ($q) => $q->where('shopify_created_at', '<=', $dateTo));
 
-        return view('orders.index', compact('orders', 'dateFrom', 'dateTo', 'sort', 'perPage', 'isDefaultDateRange'));
+        // Sum/count across the whole filtered result, not just the current
+        // page — cloned before pagination narrows the query to one page.
+        $totalSum = (clone $query)->sum('total');
+        $totalCount = (clone $query)->count();
+
+        $orders = $query->orderBy('shopify_created_at', $sort)->paginate($perPage)->withQueryString();
+
+        return view('orders.index', compact(
+            'orders', 'dateFrom', 'dateTo', 'sort', 'perPage', 'isDefaultDateRange', 'totalSum', 'totalCount',
+        ));
     }
 
     public function show(Order $order): View
@@ -63,6 +69,32 @@ class OrderController extends Controller
         $order->load('items.productVariant.unit');
 
         return view('orders.show', compact('order'));
+    }
+
+    public function label(Order $order): View
+    {
+        $this->authorize('view', $order);
+
+        $order->load('items');
+
+        return view('orders.label', compact('order'));
+    }
+
+    public function bulkLabels(Request $request): View
+    {
+        $this->authorize('viewAny', Order::class);
+
+        $validated = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['exists:orders,id'],
+        ]);
+
+        $orders = Order::with('items')
+            ->whereIn('id', $validated['order_ids'])
+            ->orderBy('shopify_created_at')
+            ->get();
+
+        return view('orders.labels-bulk', compact('orders'));
     }
 
     public function confirm(Order $order): RedirectResponse

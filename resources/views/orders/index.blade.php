@@ -52,11 +52,24 @@
         <input type="hidden" name="sort" value="{{ $sort }}">
     </form>
 
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <div class="small text-muted">
+            <span class="fw-semibold text-body">{{ $totalCount }}</span> order{{ $totalCount === 1 ? '' : 's' }} —
+            total value <span class="fw-semibold text-body">{{ $orders->first()->currency ?? 'PKR' }} {{ number_format($totalSum, 2) }}</span>
+        </div>
+        <button type="submit" form="labels-bulk-form" formtarget="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-printer"></i> Print Selected Labels
+        </button>
+    </div>
+
+    <form id="labels-bulk-form" method="GET" action="{{ route('orders.labels.bulk') }}"></form>
+
     <div class="card shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="select-all-orders" class="form-check-input"></th>
                         <th>Shopify Order</th>
                         <th>Customer</th>
                         <th>Order Status</th>
@@ -70,11 +83,16 @@
                                 <i class="bi {{ $sort === 'asc' ? 'bi-sort-up' : 'bi-sort-down' }}"></i>
                             </a>
                         </th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($orders as $order)
                         <tr>
+                            <td>
+                                <input type="checkbox" form="labels-bulk-form" name="order_ids[]" value="{{ $order->id }}"
+                                       class="form-check-input order-row-checkbox">
+                            </td>
                             <td><a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a></td>
                             <td>{{ $order->customer_name ?? '—' }}</td>
                             <td>
@@ -94,10 +112,15 @@
                             <td><span class="badge bg-secondary">{{ str($order->delivery_status)->headline() }}</span></td>
                             <td class="text-end">{{ $order->currency }} {{ number_format($order->total, 2) }}</td>
                             <td>{{ $order->shopify_created_at?->format('Y-m-d h:i A') ?? '—' }}</td>
+                            <td>
+                                <a href="{{ route('orders.label', $order) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print delivery label">
+                                    <i class="bi bi-printer"></i>
+                                </a>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">No orders found.</td>
+                            <td colspan="9" class="text-center text-muted py-4">No orders found.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -108,4 +131,14 @@
     <div class="mt-3">
         {{ $orders->links() }}
     </div>
+
+    @push('scripts')
+        <script>
+            document.getElementById('select-all-orders')?.addEventListener('change', function () {
+                document.querySelectorAll('.order-row-checkbox').forEach((checkbox) => {
+                    checkbox.checked = this.checked;
+                });
+            });
+        </script>
+    @endpush
 @endsection
