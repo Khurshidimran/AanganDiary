@@ -52,14 +52,28 @@
         <input type="hidden" name="sort" value="{{ $sort }}">
     </form>
 
-    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-        <div class="small text-muted">
-            <span class="fw-semibold text-body">{{ $totalCount }}</span> order{{ $totalCount === 1 ? '' : 's' }} —
-            total value <span class="fw-semibold text-body">{{ $orders->first()->currency ?? 'PKR' }} {{ number_format($totalSum, 2) }}</span>
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <div class="fs-3 fw-bold">{{ $totalCount }}</div>
+                    <div class="small text-muted">Order{{ $totalCount === 1 ? '' : 's' }} (Filtered)</div>
+                </div>
+            </div>
         </div>
-        <button type="submit" form="labels-bulk-form" formtarget="_blank" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-printer"></i> Print Selected Labels
-        </button>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <div class="fs-3 fw-bold">{{ $orders->first()->currency ?? 'PKR' }} {{ number_format($totalSum, 2) }}</div>
+                    <div class="small text-muted">Total Value</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 d-flex align-items-center justify-content-md-end">
+            <button type="submit" form="labels-bulk-form" formtarget="_blank" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-printer"></i> Print Selected Labels
+            </button>
+        </div>
     </div>
 
     <form id="labels-bulk-form" method="GET" action="{{ route('orders.labels.bulk') }}"></form>
