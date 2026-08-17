@@ -2,10 +2,13 @@
 
 namespace App\Services\Shopify;
 
+use App\Exceptions\InsufficientStockException;
+use App\Exceptions\WarehouseNotConfiguredException;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\ShopifySyncLog;
 use App\Models\User;
+use App\Services\OrderFulfillmentService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -29,8 +32,10 @@ class ShopifyOrderSyncService
         'authorized' => Order::PAYMENT_STATUS_PENDING,
     ];
 
-    public function __construct(private readonly ShopifyClient $client)
-    {
+    public function __construct(
+        private readonly ShopifyClient $client,
+        private readonly OrderFulfillmentService $fulfillment,
+    ) {
     }
 
     /**
@@ -38,7 +43,9 @@ class ShopifyOrderSyncService
      */
     public function sync(array $payload): Order
     {
-        return DB::transaction(function () use ($payload) {
+        $isNew = false;
+
+        $order = DB::transaction(function () use ($payload, &$isNew) {
             $order = Order::withTrashed()->firstOrNew(['shopify_order_id' => (string) $payload['id']]);
             $isNew = ! $order->exists;
 
@@ -95,6 +102,30 @@ class ShopifyOrderSyncService
 
             return $order->fresh('items');
         });
+
+        // Deliberately outside the transaction above: allocateStock() manages
+        // its own transaction and can fail on insufficient stock, and a
+        // failure here must never undo the order sync itself — Shopify
+        // won't redeliver a webhook just because we couldn't reserve stock.
+        // A newly-arrived, non-cancelled order auto-confirms; if allocation
+        // fails it's simply left pending, same as the pre-existing manual
+        // confirm flow (OrderController::confirm), for staff to retry later.
+        if ($isNew && $order->order_status === Order::ORDER_STATUS_PENDING) {
+            $this->tryAutoConfirm($order);
+        }
+
+        return $order;
+    }
+
+    private function tryAutoConfirm(Order $order): void
+    {
+        try {
+            $this->fulfillment->allocateStock($order);
+            $order->update(['order_status' => Order::ORDER_STATUS_CONFIRMED]);
+        } catch (InsufficientStockException|WarehouseNotConfiguredException) {
+            // Left pending — staff can confirm manually once stock/warehouse
+            // config is sorted out, exactly like today's manual confirm flow.
+        }
     }
 
     /**

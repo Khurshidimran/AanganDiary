@@ -67,6 +67,39 @@ class Order extends Model
         return $this->belongsTo(RiderProfile::class, 'rider_id');
     }
 
+    /**
+     * Prefers the delivery address over billing — reports/manifests care
+     * where the parcel is going, not where the customer is billed.
+     */
+    public function formattedAddress(): ?string
+    {
+        $address = $this->shipping_address ?? $this->billing_address;
+
+        if (! $address) {
+            return null;
+        }
+
+        $parts = array_filter([
+            $address['address1'] ?? null,
+            $address['address2'] ?? null,
+            $address['city'] ?? null,
+            $address['country'] ?? null,
+        ]);
+
+        return $parts ? implode(', ', $parts) : null;
+    }
+
+    /**
+     * "1x Cheese, 2x Milk" — assumes items are already eager-loaded to
+     * avoid an N+1 when called across a report's worth of orders.
+     */
+    public function itemsSummary(): string
+    {
+        return $this->items
+            ->map(fn (OrderItem $item) => ((int) $item->quantity).'x '.$item->product_name)
+            ->implode(', ');
+    }
+
     public function canBeConfirmed(): bool
     {
         return $this->order_status === self::ORDER_STATUS_PENDING;
@@ -79,8 +112,14 @@ class Order extends Model
 
     public function canBeAssigned(): bool
     {
+        // FAILED is included so a dispatcher can reassign a failed delivery
+        // back into the pipeline — failed is a retry point, not a dead end.
         return $this->order_status === self::ORDER_STATUS_CONFIRMED
-            && in_array($this->delivery_status, [self::DELIVERY_STATUS_PENDING, self::DELIVERY_STATUS_ASSIGNED], true);
+            && in_array($this->delivery_status, [
+                self::DELIVERY_STATUS_PENDING,
+                self::DELIVERY_STATUS_ASSIGNED,
+                self::DELIVERY_STATUS_FAILED,
+            ], true);
     }
 
     public function canBeMarkedPickedUp(): bool

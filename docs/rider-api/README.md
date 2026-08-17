@@ -48,23 +48,39 @@ Validation errors additionally include an `errors` object keyed by field:
 | Status | Meaning |
 |---|---|
 | 401 | Missing/invalid/revoked token |
-| 403 | Authenticated, but not a rider account — or a delivery that isn't assigned to you |
+| 403 | Authenticated, but not a rider account, a rider account that's been deactivated, or a delivery that isn't assigned to you |
 | 422 | Validation failure, or the delivery isn't in the right state for that action (e.g. marking "delivered" before "out for delivery") |
 | 429 | Rate limited (login only — 5 attempts/minute per IP) |
+
+Deactivation takes effect immediately — if a rider's account is set to
+inactive while they still hold a valid token, their very next request gets a
+403, not just their next login attempt.
 
 ## Delivery status lifecycle
 
 ```
 assigned → picked_up → out_for_delivery → delivered
-                                        ↘ failed
+              ↓              ↓
+              └────→ failed ←┘  → (reassigned) → assigned again
+              └────→ returned  [terminal]
 ```
 
 A dispatcher assigns orders to you from the admin dashboard — that's the only
 way a delivery enters your list; there's no "claim a delivery" endpoint. From
 there, you drive it forward through `picked-up` → `out-for-delivery` →
-`delivered`, or mark it `failed` with a reason if the attempt didn't succeed.
-`failed` isn't necessarily terminal — a dispatcher may reassign it back to you
-or another rider.
+`delivered`.
+
+At any point from `assigned`, `picked_up`, or `out_for_delivery`, you can
+instead call `failed` (with a reason) or `returned` — these are **alternatives
+to each other, not a sequence**:
+- `failed` — the delivery attempt didn't succeed but the parcel may still be
+  out with you; not terminal — a dispatcher can reassign it, which puts it
+  straight back to `assigned` in your list and sends you the same push
+  notification as a brand-new assignment.
+- `returned` — you're turning back with the goods intact (releases the
+  allocated stock back to inventory); this is terminal, no further action is
+  possible on this order after `returned`. It's not reachable from `failed` —
+  it's called directly from the in-progress states instead.
 
 ## Endpoints at a glance
 
@@ -78,8 +94,9 @@ or another rider.
 | POST | `/deliveries/{order}/out-for-delivery` | Mark en route |
 | POST | `/deliveries/picked-up/bulk` | Mark several picked up in one call — `{"order_ids": [...]}` |
 | POST | `/deliveries/out-for-delivery/bulk` | Mark several en route in one call — `{"order_ids": [...]}` |
-| POST | `/deliveries/{order}/delivered` | Mark delivered — accepts optional `photo`/`signature` file uploads |
+| POST | `/deliveries/{order}/delivered` | Mark delivered — requires at least one of `photo`/`signature` |
 | POST | `/deliveries/{order}/failed` | Mark failed — requires `reason` |
+| POST | `/deliveries/{order}/returned` | Mark returned — goods intact, releases allocated stock |
 | GET | `/wallet` | Balance + transaction ledger |
 | POST | `/location` | Send a GPS ping |
 | POST | `/device-token` | Register/update the FCM push token |
@@ -111,9 +128,10 @@ success purely from the `200` status.
 ## Notes for the mobile team
 
 - **Proof of delivery** (`/delivered`): send `photo` and/or `signature` as
-  `multipart/form-data` files, not base64 in JSON. Both are optional and
-  independent. Photo max 5MB (jpeg/png), signature max 2MB — export your
-  signature-pad canvas as a PNG blob and upload it like a photo.
+  `multipart/form-data` files, not base64 in JSON. **At least one of the two
+  is required** — the request is rejected with a 422 if both are missing.
+  Photo max 5MB (jpeg/png), signature max 2MB — export your signature-pad
+  canvas as a PNG blob and upload it like a photo.
 - **COD and earnings are automatic** — marking an order `delivered` credits
   your wallet for any COD it was carrying and your per-delivery rate. There's
   nothing to submit manually for that; just check `/wallet` to see it reflected.
@@ -122,8 +140,11 @@ success purely from the `200` status.
   more frequently than that or the data volume grows unnecessarily.
 - **Push notifications**: register your FCM token via `/device-token` right
   after login, and again whenever Firebase's SDK issues a refreshed token.
-  You'll receive a push when a dispatcher assigns you a new delivery
-  (`data.type: "delivery_assigned"`, `data.order_id` in the payload).
+  You'll receive a push whenever a dispatcher assigns you a delivery — both a
+  brand-new assignment and a reassignment after a `failed` attempt trigger the
+  same push (`data.type: "delivery_assigned"`, `data.order_id` in the payload).
+  Only one device token is stored per rider — registering a new one replaces
+  the old, so push stops on the previous device.
 - **No offline queue on the server side** — if the app goes offline, queue
   status-transition and location-ping requests client-side and retry when
   connectivity returns. The API has no concept of "pending sync."

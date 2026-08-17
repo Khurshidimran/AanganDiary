@@ -69,7 +69,13 @@
                 </div>
             </div>
         </div>
-        <div class="col-12 col-md-6 d-flex align-items-center justify-content-md-end">
+        <div class="col-12 col-md-6 d-flex align-items-center justify-content-md-end gap-2">
+            <a href="{{ route('orders.export.pdf', request()->query()) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+            </a>
+            <a href="{{ route('orders.export.excel', request()->query()) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-file-earmark-excel"></i> Export Excel
+            </a>
             <button type="submit" form="labels-bulk-form" formtarget="_blank" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-printer"></i> Print Selected Labels
             </button>

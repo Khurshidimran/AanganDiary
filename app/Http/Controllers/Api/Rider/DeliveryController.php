@@ -84,8 +84,8 @@ class DeliveryController extends Controller
         abort_unless($order->canBeMarkedDelivered(), 422, 'This order is not out for delivery.');
 
         $validated = $request->validate([
-            'photo' => ['nullable', 'image', 'max:5120'],
-            'signature' => ['nullable', 'image', 'max:2048'],
+            'photo' => ['nullable', 'required_without:signature', 'image', 'max:5120'],
+            'signature' => ['nullable', 'required_without:photo', 'image', 'max:2048'],
         ]);
 
         $directory = "proof-of-delivery/{$order->id}";
@@ -105,6 +105,16 @@ class DeliveryController extends Controller
         $validated = $request->validate(['reason' => ['required', 'string', 'max:255']]);
 
         $this->dispatch->markFailed($order, $validated['reason']);
+
+        return new OrderResource($order->fresh('items'));
+    }
+
+    public function returned(Request $request, Order $order): OrderResource
+    {
+        $this->ensureOwnership($request, $order);
+        abort_unless($order->canBeMarkedFailedOrReturned(), 422, 'This order cannot be marked as returned right now.');
+
+        $this->dispatch->markReturned($order);
 
         return new OrderResource($order->fresh('items'));
     }

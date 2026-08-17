@@ -40,6 +40,7 @@ Route::prefix('v1/rider')->name('api.rider.')->group(function () {
         Route::post('deliveries/out-for-delivery/bulk', [RiderDeliveryController::class, 'bulkOutForDelivery'])->name('deliveries.out-for-delivery.bulk');
         Route::post('deliveries/{order}/delivered', [RiderDeliveryController::class, 'delivered'])->name('deliveries.delivered');
         Route::post('deliveries/{order}/failed', [RiderDeliveryController::class, 'failed'])->name('deliveries.failed');
+        Route::post('deliveries/{order}/returned', [RiderDeliveryController::class, 'returned'])->name('deliveries.returned');
 
         Route::get('wallet', [RiderWalletApiController::class, 'show'])->name('wallet');
 

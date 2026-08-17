@@ -58,6 +58,11 @@
                                 </span>
                             </td>
                             <td class="text-end">
+                                @can('dispatch.view')
+                                    <a href="{{ route('riders.manifest', $rider) }}" class="btn btn-sm btn-outline-secondary" title="Download delivery manifest">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </a>
+                                @endcan
                                 @can('update', $rider)
                                     <a href="{{ route('riders.edit', $rider) }}" class="btn btn-sm btn-outline-secondary">
                                         <i class="bi bi-pencil"></i>

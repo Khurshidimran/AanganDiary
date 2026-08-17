@@ -4,14 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\InsufficientStockException;
 use App\Exceptions\WarehouseNotConfiguredException;
+use App\Exports\OrdersExport;
 use App\Models\Order;
 use App\Services\AuditLogService;
 use App\Services\OrderFulfillmentService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class OrderController extends Controller
 {
@@ -25,30 +31,12 @@ class OrderController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
-        // No date_from/date_to in the query string at all means this is the
-        // first, unfiltered visit — default to the current month. If they're
-        // present but blank, the user explicitly cleared the filter to see
-        // all-time orders, so that's left unbounded rather than re-defaulted.
-        $isDefaultDateRange = ! $request->has('date_from') && ! $request->has('date_to');
-
-        if ($isDefaultDateRange) {
-            $dateFrom = now()->startOfMonth();
-            $dateTo = now()->endOfDay();
-        } else {
-            $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : null;
-            $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : null;
-        }
+        [$query, $dateFrom, $dateTo, $isDefaultDateRange] = $this->filteredQuery($request);
 
         $sort = $request->query('sort') === 'asc' ? 'asc' : 'desc';
         $perPage = in_array((int) $request->query('per_page'), [10, 50, 100], true)
             ? (int) $request->query('per_page')
             : 50;
-
-        $query = Order::query()
-            ->when($request->filled('order_status'), fn ($q) => $q->where('order_status', $request->query('order_status')))
-            ->when($request->filled('delivery_status'), fn ($q) => $q->where('delivery_status', $request->query('delivery_status')))
-            ->when($dateFrom, fn ($q) => $q->where('shopify_created_at', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('shopify_created_at', '<=', $dateTo));
 
         // Sum/count across the whole filtered result, not just the current
         // page — cloned before pagination narrows the query to one page.
@@ -60,6 +48,58 @@ class OrderController extends Controller
         return view('orders.index', compact(
             'orders', 'dateFrom', 'dateTo', 'sort', 'perPage', 'isDefaultDateRange', 'totalSum', 'totalCount',
         ));
+    }
+
+    public function exportPdf(Request $request): Response
+    {
+        $this->authorize('viewAny', Order::class);
+
+        [$query] = $this->filteredQuery($request);
+        $orders = $query->with('items')->orderByDesc('shopify_created_at')->get();
+
+        return Pdf::loadView('orders.report-pdf', compact('orders'))
+            ->setPaper('a4', 'landscape')
+            ->download('orders-report-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    public function exportExcel(Request $request): BinaryFileResponse
+    {
+        $this->authorize('viewAny', Order::class);
+
+        [$query] = $this->filteredQuery($request);
+        $orders = $query->with('items')->orderByDesc('shopify_created_at')->get();
+
+        return Excel::download(new OrdersExport($orders), 'orders-report-'.now()->format('Y-m-d').'.xlsx');
+    }
+
+    /**
+     * Shared by the orders list and both export actions so the exported
+     * rows always match whatever's currently filtered on screen — same
+     * date-default rule as the list (see index()'s original comment):
+     * no date_from/date_to at all means "current month"; present-but-blank
+     * means the user explicitly asked for all-time.
+     *
+     * @return array{0: Builder, 1: ?Carbon, 2: ?Carbon, 3: bool}
+     */
+    private function filteredQuery(Request $request): array
+    {
+        $isDefaultDateRange = ! $request->has('date_from') && ! $request->has('date_to');
+
+        if ($isDefaultDateRange) {
+            $dateFrom = now()->startOfMonth();
+            $dateTo = now()->endOfDay();
+        } else {
+            $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : null;
+            $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : null;
+        }
+
+        $query = Order::query()
+            ->when($request->filled('order_status'), fn ($q) => $q->where('order_status', $request->query('order_status')))
+            ->when($request->filled('delivery_status'), fn ($q) => $q->where('delivery_status', $request->query('delivery_status')))
+            ->when($dateFrom, fn ($q) => $q->where('shopify_created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('shopify_created_at', '<=', $dateTo));
+
+        return [$query, $dateFrom, $dateTo, $isDefaultDateRange];
     }
 
     public function show(Order $order): View

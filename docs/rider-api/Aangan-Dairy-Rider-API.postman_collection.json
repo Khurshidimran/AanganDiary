@@ -197,7 +197,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "v1", "rider", "deliveries", "{{order_id}}", "delivered"]
             },
-            "description": "Transitions delivery_status: out_for_delivery → delivered. Both `photo` and `signature` are optional and independent — send either, both, or neither.\n\nSide effects (automatic, no client action needed):\n- If the order has `cod_amount` > 0, it's marked `cod_collected: true` and credited to your wallet balance (you now owe the company that cash).\n- Your per-delivery earning rate is credited to your wallet (reduces what you owe / increases what the company owes you).\n\n422 if the order isn't currently 'out_for_delivery'."
+            "description": "Transitions delivery_status: out_for_delivery → delivered. **At least one of `photo` or `signature` is required** — the request is rejected with a 422 if both are missing (send either, both, but not neither).\n\nSide effects (automatic, no client action needed):\n- If the order has `cod_amount` > 0, it's marked `cod_collected: true` and credited to your wallet balance (you now owe the company that cash).\n- Your per-delivery earning rate is credited to your wallet (reduces what you owe / increases what the company owes you).\n\n422 if the order isn't currently 'out_for_delivery', or if no photo/signature was attached."
           }
         },
         {
@@ -217,7 +217,20 @@
               "host": ["{{base_url}}"],
               "path": ["api", "v1", "rider", "deliveries", "{{order_id}}", "failed"]
             },
-            "description": "Marks a delivery attempt as failed (customer unreachable, refused, wrong address, etc.). `reason` is required, max 255 chars. Valid from assigned, picked_up, or out_for_delivery. Does not release allocated stock — a dispatcher can reassign/retry, or mark it 'returned' from the admin dashboard once goods are physically back at the warehouse."
+            "description": "Marks a delivery attempt as failed (customer unreachable, refused, wrong address, etc.). `reason` is required, max 255 chars. Valid from assigned, picked_up, or out_for_delivery. Does not release allocated stock.\n\nNot a dead end: a dispatcher can reassign a failed order back to you (or another rider) from the admin dashboard, which returns it to 'assigned' status in your delivery list — you'll get the same push notification as a brand-new assignment."
+          }
+        },
+        {
+          "name": "Mark Returned",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries/{{order_id}}/returned",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries", "{{order_id}}", "returned"]
+            },
+            "description": "Marks the goods as physically returned (never actually handed over) and releases the allocated stock back into inventory. This is an **alternative to Mark Failed**, not a follow-up to it — valid from the same states (assigned, picked_up, out_for_delivery), not from an order that's already 'failed'. Use this when you're turning back with the parcel intact (e.g. customer refuses on the spot) rather than logging a failed attempt that might get retried.\n\n`returned` is terminal — no further status transitions are possible on this order after this call. 422 if the order isn't in an eligible state, 403 if it's not your delivery."
           }
         }
       ]

@@ -9,7 +9,9 @@ use App\Models\RiderProfile;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\AuditLogService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -26,6 +28,32 @@ class RiderController extends Controller
         $riders = RiderProfile::with('user', 'warehouse')->orderBy('created_at', 'desc')->paginate(20);
 
         return view('riders.index', compact('riders'));
+    }
+
+    /**
+     * A shareable/printable list of everything currently in this rider's
+     * hands — the same active-delivery set shown on the Dispatch Board,
+     * just scoped to one rider instead of shown flat across all of them.
+     */
+    public function manifest(RiderProfile $rider): Response
+    {
+        $this->authorize('dispatch.view');
+
+        $rider->load('user');
+
+        $orders = Order::with('items')
+            ->where('rider_id', $rider->id)
+            ->whereIn('delivery_status', [
+                Order::DELIVERY_STATUS_ASSIGNED,
+                Order::DELIVERY_STATUS_PICKED_UP,
+                Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+            ])
+            ->orderBy('assigned_at')
+            ->get();
+
+        return Pdf::loadView('riders.manifest-pdf', compact('rider', 'orders'))
+            ->setPaper('a4', 'portrait')
+            ->download("delivery-manifest-{$rider->user->name}-".now()->format('Y-m-d').'.pdf');
     }
 
     public function create(): View

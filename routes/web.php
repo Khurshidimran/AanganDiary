@@ -67,6 +67,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('orders', OrderController::class)->only(['index', 'show']);
     Route::get('orders/{order}/label', [OrderController::class, 'label'])->name('orders.label');
+    Route::get('orders/export/pdf', [OrderController::class, 'exportPdf'])->name('orders.export.pdf');
+    Route::get('orders/export/excel', [OrderController::class, 'exportExcel'])->name('orders.export.excel');
     Route::post('orders/{order}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm');
     Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
@@ -76,6 +78,7 @@ Route::middleware('auth')->group(function () {
     Route::post('shopify/sync-orders', [ShopifyController::class, 'syncOrders'])->name('shopify.sync-orders');
 
     Route::resource('riders', RiderController::class)->except(['show']);
+    Route::get('riders/{rider}/manifest', [RiderController::class, 'manifest'])->name('riders.manifest');
     Route::get('riders/{rider}/wallet', [RiderWalletController::class, 'show'])->name('riders.wallet');
     Route::post('riders/{rider}/wallet/settle-cod', [RiderWalletController::class, 'settleCod'])->name('riders.wallet.settle-cod');
     Route::post('riders/{rider}/wallet/pay-earnings', [RiderWalletController::class, 'payEarnings'])->name('riders.wallet.pay-earnings');
