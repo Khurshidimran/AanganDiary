@@ -64,6 +64,7 @@ class ShopifyOrderSyncService
                 'shipping_address' => $payload['shipping_address'] ?? null,
                 'currency' => $payload['currency'] ?? null,
                 'subtotal' => $payload['subtotal_price'] ?? 0,
+                'discount_total' => $payload['total_discounts'] ?? 0,
                 'tax_total' => $payload['total_tax'] ?? 0,
                 'shipping_total' => $payload['total_shipping_price_set']['shop_money']['amount'] ?? 0,
                 'total' => $payload['total_price'] ?? 0,

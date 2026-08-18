@@ -25,8 +25,9 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'Order No', 'Customer Name', 'Customer Contact', 'Amount', 'Address',
-            'Order Detail', 'Order Date', 'Order Status', 'Delivery Status', 'Payment Status', 'Rider Name',
+            'Order No', 'Customer Name', 'Customer Contact',
+            'Order Amount', 'Discount', 'Delivery Charges', 'Total Amount',
+            'Address', 'Order Detail', 'Order Date', 'Order Status', 'Delivery Status', 'Payment Status', 'Rider Name',
             'Scheduled Dispatch', 'Instructions for Rider',
         ];
     }
@@ -40,6 +41,9 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
             $order->shopify_order_number ?? $order->shopify_order_id,
             $order->customer_name,
             $order->customer_phone,
+            number_format((float) $order->subtotal, 2),
+            number_format((float) $order->discount_total, 2),
+            number_format((float) $order->shipping_total, 2),
             number_format((float) $order->total, 2),
             $order->formattedAddress(),
             $order->itemsSummary(),

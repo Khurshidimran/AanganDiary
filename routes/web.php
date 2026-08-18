@@ -82,6 +82,7 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('riders', RiderController::class)->except(['show']);
     Route::get('riders/{rider}/manifest', [RiderController::class, 'manifest'])->name('riders.manifest');
+    Route::get('riders/{rider}/manifest/excel', [RiderController::class, 'manifestExcel'])->name('riders.manifest.excel');
     Route::post('riders/{rider}/check-in', [RiderController::class, 'checkIn'])->name('riders.check-in');
     Route::post('riders/{rider}/check-out', [RiderController::class, 'checkOut'])->name('riders.check-out');
     Route::get('riders/{rider}/wallet', [RiderWalletController::class, 'show'])->name('riders.wallet');

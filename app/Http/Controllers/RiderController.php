@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\OrdersExport;
 use App\Http\Requests\StoreRiderRequest;
 use App\Http\Requests\UpdateRiderRequest;
 use App\Models\Order;
@@ -14,6 +15,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class RiderController extends Controller
 {
@@ -34,14 +37,38 @@ class RiderController extends Controller
      * A shareable/printable list of everything currently in this rider's
      * hands — the same active-delivery set shown on the Dispatch Board,
      * just scoped to one rider instead of shown flat across all of them.
+     * Reuses the exact same report view/columns as the main Orders export
+     * (orders.report-pdf / OrdersExport) so the two are always identical in
+     * shape — a rider-scoped slice of the same report, not a separate one.
      */
     public function manifest(RiderProfile $rider): Response
     {
         $this->authorize('dispatch.view');
 
+        $orders = $this->activeOrdersFor($rider);
+
+        return Pdf::loadView('orders.report-pdf', compact('orders'))
+            ->setPaper('a4', 'landscape')
+            ->download("delivery-manifest-{$rider->user->name}-".now()->format('Y-m-d').'.pdf');
+    }
+
+    public function manifestExcel(RiderProfile $rider): BinaryFileResponse
+    {
+        $this->authorize('dispatch.view');
+
+        $orders = $this->activeOrdersFor($rider);
+
+        return Excel::download(new OrdersExport($orders), "delivery-manifest-{$rider->user->name}-".now()->format('Y-m-d').'.xlsx');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, Order>
+     */
+    private function activeOrdersFor(RiderProfile $rider): \Illuminate\Database\Eloquent\Collection
+    {
         $rider->load('user');
 
-        $orders = Order::with('items')
+        return Order::with(['items', 'rider.user'])
             ->where('rider_id', $rider->id)
             ->whereIn('delivery_status', [
                 Order::DELIVERY_STATUS_ASSIGNED,
@@ -50,10 +77,6 @@ class RiderController extends Controller
             ])
             ->orderBy('assigned_at')
             ->get();
-
-        return Pdf::loadView('riders.manifest-pdf', compact('rider', 'orders'))
-            ->setPaper('a4', 'portrait')
-            ->download("delivery-manifest-{$rider->user->name}-".now()->format('Y-m-d').'.pdf');
     }
 
     /**

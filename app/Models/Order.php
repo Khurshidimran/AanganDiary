@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'shopify_order_id', 'shopify_order_number', 'customer_name', 'customer_email', 'customer_phone',
     'billing_address', 'shipping_address', 'order_status', 'payment_status', 'delivery_status',
-    'currency', 'subtotal', 'tax_total', 'shipping_total', 'total', 'total_outstanding', 'notes', 'shopify_created_at',
+    'currency', 'subtotal', 'discount_total', 'tax_total', 'shipping_total', 'total', 'total_outstanding', 'notes', 'shopify_created_at',
     'rider_id', 'route_sequence', 'assigned_at', 'scheduled_dispatch_at', 'rider_instructions',
     'picked_up_at', 'delivered_at', 'cod_amount', 'cod_collected',
     'delivery_failure_reason', 'pod_photo_path', 'pod_signature_path', 'pod_captured_at',
@@ -44,6 +44,7 @@ class Order extends Model
             'billing_address' => 'array',
             'shipping_address' => 'array',
             'subtotal' => 'decimal:2',
+            'discount_total' => 'decimal:2',
             'tax_total' => 'decimal:2',
             'shipping_total' => 'decimal:2',
             'total' => 'decimal:2',

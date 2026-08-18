@@ -24,7 +24,10 @@
                 <th>Order No</th>
                 <th>Customer</th>
                 <th>Contact</th>
-                <th class="text-end">Amount</th>
+                <th class="text-end">Order Amount</th>
+                <th class="text-end">Discount</th>
+                <th class="text-end">Delivery Charges</th>
+                <th class="text-end">Total Amount</th>
                 <th>Address</th>
                 <th>Order Detail</th>
                 <th>Order Date</th>
@@ -42,6 +45,9 @@
                     <td>{{ $order->shopify_order_number ?? $order->shopify_order_id }}</td>
                     <td>{{ $order->customer_name ?? '—' }}</td>
                     <td>{{ $order->customer_phone ?? '—' }}</td>
+                    <td class="text-end">{{ number_format($order->subtotal, 2) }}</td>
+                    <td class="text-end">{{ number_format($order->discount_total, 2) }}</td>
+                    <td class="text-end">{{ number_format($order->shipping_total, 2) }}</td>
                     <td class="text-end">{{ $order->currency }} {{ number_format($order->total, 2) }}</td>
                     <td>{{ $order->formattedAddress() ?? '—' }}</td>
                     <td>{{ $order->itemsSummary() ?: '—' }}</td>

@@ -77,8 +77,11 @@
                             </td>
                             <td class="text-end">
                                 @can('dispatch.view')
-                                    <a href="{{ route('riders.manifest', $rider) }}" class="btn btn-sm btn-outline-secondary" title="Download delivery manifest">
-                                        <i class="bi bi-file-earmark-text"></i>
+                                    <a href="{{ route('riders.manifest', $rider) }}" class="btn btn-sm btn-outline-secondary" title="Download delivery manifest (PDF)">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </a>
+                                    <a href="{{ route('riders.manifest.excel', $rider) }}" class="btn btn-sm btn-outline-secondary" title="Download delivery manifest (Excel)">
+                                        <i class="bi bi-file-earmark-excel"></i>
                                     </a>
                                 @endcan
                                 @can('update', $rider)
