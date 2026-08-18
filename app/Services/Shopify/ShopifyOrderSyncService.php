@@ -117,6 +117,22 @@ class ShopifyOrderSyncService
         return $order;
     }
 
+    /**
+     * Cancels the order on Shopify's side too, when it's cancelled here —
+     * restocks Shopify's inventory (item becomes purchasable again on the
+     * storefront) and lets Shopify send its own cancellation email. Throws
+     * on failure (ShopifyClient::post() already ->throw()s on a non-2xx
+     * response) — the caller is expected to block the local cancellation if
+     * this fails, so the two systems never drift out of sync.
+     */
+    public function cancelInShopify(Order $order): void
+    {
+        $this->client->post("orders/{$order->shopify_order_id}/cancel.json", [
+            'restock' => true,
+            'email' => true,
+        ]);
+    }
+
     private function tryAutoConfirm(Order $order): void
     {
         // Confirmation is unconditional — a stock shortage or missing

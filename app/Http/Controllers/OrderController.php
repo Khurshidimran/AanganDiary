@@ -8,6 +8,7 @@ use App\Exports\OrdersExport;
 use App\Models\Order;
 use App\Services\AuditLogService;
 use App\Services\OrderFulfillmentService;
+use App\Services\Shopify\ShopifyOrderSyncService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,12 +19,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 class OrderController extends Controller
 {
     public function __construct(
         private readonly AuditLogService $auditLog,
         private readonly OrderFulfillmentService $fulfillment,
+        private readonly ShopifyOrderSyncService $shopifySync,
     ) {
     }
 
@@ -165,6 +168,16 @@ class OrderController extends Controller
     {
         $this->authorize('cancel', $order);
 
+        // Cancel on Shopify's side first — if this fails, the local
+        // cancellation doesn't proceed either, so the two systems never
+        // drift out of sync (deliberate: no "cancelled here but still open
+        // on Shopify" state).
+        try {
+            $this->shopifySync->cancelInShopify($order);
+        } catch (Throwable $e) {
+            return back()->with('error', "Cannot cancel order: Shopify cancellation failed — {$e->getMessage()}");
+        }
+
         $wasConfirmed = $order->order_status === Order::ORDER_STATUS_CONFIRMED;
 
         try {
@@ -181,6 +194,6 @@ class OrderController extends Controller
 
         $this->auditLog->log('cancelled', 'orders', $order, null, ['order_status' => $order->order_status]);
 
-        return back()->with('status', 'Order cancelled.');
+        return back()->with('status', 'Order cancelled — locally and in Shopify.');
     }
 }
