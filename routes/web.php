@@ -14,6 +14,7 @@ use App\Http\Controllers\RiderWalletController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShopifyController;
+use App\Http\Controllers\ShopifyOAuthController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockBalanceController;
 use App\Http\Controllers\StockTransferController;
@@ -76,6 +77,8 @@ Route::middleware('auth')->group(function () {
     Route::post('shopify/sync-products', [ShopifyController::class, 'syncProducts'])->name('shopify.sync-products');
     Route::post('shopify/push-inventory', [ShopifyController::class, 'pushInventory'])->name('shopify.push-inventory');
     Route::post('shopify/sync-orders', [ShopifyController::class, 'syncOrders'])->name('shopify.sync-orders');
+    Route::get('shopify/connect', [ShopifyOAuthController::class, 'connect'])->name('shopify.connect');
+    Route::get('shopify/callback', [ShopifyOAuthController::class, 'callback'])->name('shopify.callback');
 
     Route::resource('riders', RiderController::class)->except(['show']);
     Route::get('riders/{rider}/manifest', [RiderController::class, 'manifest'])->name('riders.manifest');

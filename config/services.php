@@ -40,6 +40,10 @@ return [
         'access_token' => env('SHOPIFY_ACCESS_TOKEN'),
         'api_version' => env('SHOPIFY_API_VERSION', '2024-01'),
         'webhook_secret' => env('SHOPIFY_WEBHOOK_SECRET'),
+        // Only needed for the /shopify/connect OAuth flow (ShopifyOAuthController)
+        // that issues a fresh offline access token — not used by ShopifyClient.
+        'api_key' => env('SHOPIFY_API_KEY'),
+        'api_secret' => env('SHOPIFY_API_SECRET'),
     ],
 
     // Firebase Cloud Messaging — push notifications to the rider app. Credentials

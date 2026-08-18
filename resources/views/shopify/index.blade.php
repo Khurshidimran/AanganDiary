@@ -55,6 +55,13 @@
                         <div class="small text-muted">
                             Pulls any order created or updated since the date/time above — use this to catch up after downtime. Safe to run repeatedly: existing orders are updated in place, never duplicated.
                         </div>
+                        <hr class="my-1">
+                        <a href="{{ route('shopify.connect') }}" class="btn btn-outline-secondary btn-sm w-100">
+                            <i class="bi bi-key"></i> Connect Shopify (Get Offline Token)
+                        </a>
+                        <div class="small text-muted">
+                            Use this if your access token was issued as an expiring "online" token (Shopify's <code>expires_in</code> field) — this requests a proper offline token instead, which never expires. Requires <code>SHOPIFY_API_KEY</code>/<code>SHOPIFY_API_SECRET</code> in <code>.env</code> and this app's redirect URL registered in your Shopify app settings.
+                        </div>
                     @endcan
                 </div>
             </div>
