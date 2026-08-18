@@ -41,6 +41,7 @@ class DeliveryController extends Controller
     public function pickedUp(Request $request, Order $order): OrderResource
     {
         $this->ensureOwnership($request, $order);
+        abort_if($order->isCancelled(), 422, 'This order was cancelled in Shopify and cannot be picked up.');
         abort_unless($order->canBeMarkedPickedUp(), 422, 'This order is not in an assigned state.');
 
         $this->dispatch->markPickedUp($order);
@@ -51,6 +52,7 @@ class DeliveryController extends Controller
     public function outForDelivery(Request $request, Order $order): OrderResource
     {
         $this->ensureOwnership($request, $order);
+        abort_if($order->isCancelled(), 422, 'This order was cancelled in Shopify and cannot be marked out for delivery.');
         abort_unless($order->canBeMarkedOutForDelivery(), 422, 'This order has not been picked up yet.');
 
         $this->dispatch->markOutForDelivery($order);
@@ -81,6 +83,7 @@ class DeliveryController extends Controller
     public function delivered(Request $request, Order $order): OrderResource
     {
         $this->ensureOwnership($request, $order);
+        abort_if($order->isCancelled(), 422, 'This order was cancelled in Shopify and cannot be marked delivered.');
         abort_unless($order->canBeMarkedDelivered(), 422, 'This order is not out for delivery.');
 
         $validated = $request->validate([

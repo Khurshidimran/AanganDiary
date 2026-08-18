@@ -75,6 +75,10 @@ class DispatchController extends Controller
     {
         $this->authorize('dispatch.manage');
 
+        if ($order->isCancelled()) {
+            return back()->with('error', 'This order was cancelled in Shopify and cannot be picked up.');
+        }
+
         if (! $order->canBeMarkedPickedUp()) {
             return back()->with('error', 'This order is not in an assigned state.');
         }
@@ -88,6 +92,10 @@ class DispatchController extends Controller
     public function outForDelivery(Order $order): RedirectResponse
     {
         $this->authorize('dispatch.manage');
+
+        if ($order->isCancelled()) {
+            return back()->with('error', 'This order was cancelled in Shopify and cannot be marked out for delivery.');
+        }
 
         if (! $order->canBeMarkedOutForDelivery()) {
             return back()->with('error', 'This order has not been picked up yet.');
@@ -140,6 +148,10 @@ class DispatchController extends Controller
     public function delivered(Order $order): RedirectResponse
     {
         $this->authorize('dispatch.manage');
+
+        if ($order->isCancelled()) {
+            return back()->with('error', 'This order was cancelled in Shopify and cannot be marked delivered.');
+        }
 
         if (! $order->canBeMarkedDelivered()) {
             return back()->with('error', 'This order is not out for delivery.');

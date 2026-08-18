@@ -90,19 +90,28 @@
                 <thead>
                     <tr>
                         <th><input type="checkbox" id="select-all-orders" class="form-check-input"></th>
-                        <th>Shopify Order</th>
-                        <th>Customer</th>
-                        <th>Order Status</th>
-                        <th>Payment Status</th>
-                        <th>Delivery Status</th>
-                        <th class="text-end">Total</th>
+                        <th>Order No</th>
+                        <th>Customer Name</th>
+                        <th>Customer Contact</th>
+                        <th class="text-end">Order Amount</th>
+                        <th class="text-end">Discount</th>
+                        <th class="text-end">Delivery Charges</th>
+                        <th class="text-end">Total Amount</th>
+                        <th>Address</th>
+                        <th>Order Detail</th>
                         <th>
                             <a href="{{ request()->fullUrlWithQuery(['sort' => $sort === 'asc' ? 'desc' : 'asc']) }}"
                                class="text-decoration-none text-body">
-                                Order Date/Time
+                                Order Date
                                 <i class="bi {{ $sort === 'asc' ? 'bi-sort-up' : 'bi-sort-down' }}"></i>
                             </a>
                         </th>
+                        <th>Order Status</th>
+                        <th>Delivery Status</th>
+                        <th>Payment Status</th>
+                        <th>Rider Name</th>
+                        <th>Scheduled Dispatch</th>
+                        <th>Instructions for Rider</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -115,6 +124,14 @@
                             </td>
                             <td><a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a></td>
                             <td>{{ $order->customer_name ?? '—' }}</td>
+                            <td>{{ $order->customer_phone ?? '—' }}</td>
+                            <td class="text-end">{{ number_format($order->subtotal, 2) }}</td>
+                            <td class="text-end">{{ number_format($order->discount_total, 2) }}</td>
+                            <td class="text-end">{{ number_format($order->shipping_total, 2) }}</td>
+                            <td class="text-end">{{ $order->currency }} {{ number_format($order->total, 2) }}</td>
+                            <td>{{ $order->formattedAddress() ?? '—' }}</td>
+                            <td>{{ $order->itemsSummary() ?: '—' }}</td>
+                            <td>{{ $order->shopify_created_at?->format('Y-m-d h:i A') ?? '—' }}</td>
                             <td>
                                 <span class="badge {{ match ($order->order_status) {
                                     'confirmed' => 'bg-success',
@@ -122,6 +139,7 @@
                                     default => 'bg-secondary',
                                 } }}">{{ ucfirst($order->order_status) }}</span>
                             </td>
+                            <td><span class="badge bg-secondary">{{ str($order->delivery_status)->headline() }}</span></td>
                             <td>
                                 <span class="badge {{ match ($order->payment_status) {
                                     'paid' => 'bg-success',
@@ -129,9 +147,9 @@
                                     default => 'bg-secondary',
                                 } }}">{{ str($order->payment_status)->headline() }}</span>
                             </td>
-                            <td><span class="badge bg-secondary">{{ str($order->delivery_status)->headline() }}</span></td>
-                            <td class="text-end">{{ $order->currency }} {{ number_format($order->total, 2) }}</td>
-                            <td>{{ $order->shopify_created_at?->format('Y-m-d h:i A') ?? '—' }}</td>
+                            <td>{{ $order->rider?->user?->name ?? '—' }}</td>
+                            <td>{{ $order->scheduled_dispatch_at?->format('Y-m-d h:i A') ?? '—' }}</td>
+                            <td>{{ $order->rider_instructions ?? '—' }}</td>
                             <td>
                                 <a href="{{ route('orders.label', $order) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print delivery label">
                                     <i class="bi bi-printer"></i>
@@ -140,7 +158,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">No orders found.</td>
+                            <td colspan="18" class="text-center text-muted py-4">No orders found.</td>
                         </tr>
                     @endforelse
                 </tbody>

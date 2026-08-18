@@ -46,7 +46,7 @@ class OrderController extends Controller
         $totalSum = (clone $query)->sum('total');
         $totalCount = (clone $query)->count();
 
-        $orders = $query->orderBy('shopify_created_at', $sort)->paginate($perPage)->withQueryString();
+        $orders = $query->with(['items', 'rider.user'])->orderBy('shopify_created_at', $sort)->paginate($perPage)->withQueryString();
 
         return view('orders.index', compact(
             'orders', 'dateFrom', 'dateTo', 'sort', 'perPage', 'isDefaultDateRange', 'totalSum', 'totalCount',
