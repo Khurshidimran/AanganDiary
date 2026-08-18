@@ -108,6 +108,7 @@
                         </th>
                         <th>Order Status</th>
                         <th>Delivery Status</th>
+                        <th>Delivered Date/Time</th>
                         <th>Payment Status</th>
                         <th>Rider Name</th>
                         <th>Scheduled Dispatch</th>
@@ -140,6 +141,7 @@
                                 } }}">{{ ucfirst($order->order_status) }}</span>
                             </td>
                             <td><span class="badge bg-secondary">{{ str($order->delivery_status)->headline() }}</span></td>
+                            <td>{{ $order->delivered_at?->format('Y-m-d h:i A') ?? '—' }}</td>
                             <td>
                                 <span class="badge {{ match ($order->payment_status) {
                                     'paid' => 'bg-success',
@@ -158,7 +160,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="18" class="text-center text-muted py-4">No orders found.</td>
+                            <td colspan="19" class="text-center text-muted py-4">No orders found.</td>
                         </tr>
                     @endforelse
                 </tbody>

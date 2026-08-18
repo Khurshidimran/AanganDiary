@@ -72,6 +72,38 @@ body {
     width: 250px;
     min-height: 100vh;
     background: linear-gradient(180deg, var(--aangan-green) 0%, var(--aangan-green-dark) 100%);
+    transition: width 0.15s ease;
+    overflow-x: hidden;
+}
+
+/* Collapsed sidebar — icons only. Labels are hidden via font-size rather
+   than wrapping every nav-item's text in a span (would mean touching ~20
+   nav items); the icon's own font-size is reset back so it stays visible. */
+html.sidebar-collapsed #sidebar {
+    width: 68px;
+}
+
+html.sidebar-collapsed #sidebar .brand,
+html.sidebar-collapsed #sidebar .nav-link,
+html.sidebar-collapsed #sidebar .nav-section-title {
+    font-size: 0;
+    white-space: nowrap;
+}
+
+html.sidebar-collapsed #sidebar .nav-link {
+    text-align: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+html.sidebar-collapsed #sidebar .nav-link i {
+    font-size: 1.1rem;
+    margin-right: 0 !important;
+}
+
+html.sidebar-collapsed #sidebar .brand img {
+    width: 32px;
+    height: 32px;
 }
 
 #sidebar .brand {

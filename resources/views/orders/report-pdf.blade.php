@@ -33,6 +33,7 @@
                 <th>Order Date</th>
                 <th>Order Status</th>
                 <th>Delivery Status</th>
+                <th>Delivered Date/Time</th>
                 <th>Payment Status</th>
                 <th>Rider Name</th>
                 <th>Scheduled Dispatch</th>
@@ -54,6 +55,7 @@
                     <td>{{ $order->shopify_created_at?->format('Y-m-d h:i A') ?? '—' }}</td>
                     <td>{{ ucfirst($order->order_status) }}</td>
                     <td>{{ str($order->delivery_status)->headline() }}</td>
+                    <td>{{ $order->delivered_at?->format('Y-m-d h:i A') ?? '—' }}</td>
                     <td>{{ str($order->payment_status)->headline() }}</td>
                     <td>{{ $order->rider?->user?->name ?? '' }}</td>
                     <td>{{ $order->scheduled_dispatch_at?->format('Y-m-d h:i A') ?? '' }}</td>

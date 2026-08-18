@@ -11,6 +11,16 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}">
     @stack('styles')
+    <script>
+        // Applied before paint so a collapsed sidebar doesn't flash open on
+        // every page load (this is a classic server-rendered app — the
+        // sidebar's collapsed state has to be re-applied on every request).
+        // Class goes on <html> since #sidebar doesn't exist in the DOM yet
+        // at this point in <head>.
+        if (localStorage.getItem('sidebar-collapsed') === '1') {
+            document.documentElement.classList.add('sidebar-collapsed');
+        }
+    </script>
 </head>
 <body>
     <div class="d-flex">
@@ -191,22 +201,33 @@
 
         <main class="d-flex flex-column">
             <nav class="navbar topbar px-3">
-                <span class="navbar-text fw-semibold text-dark">@yield('title', 'Dashboard')</span>
-
-                <div class="dropdown">
-                    <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle me-1"></i> {{ auth()->user()->name }}
+                <div class="d-flex align-items-center gap-2">
+                    <button id="sidebar-toggle" type="button" class="btn btn-light btn-sm" title="Collapse/expand sidebar">
+                        <i class="bi bi-list"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{{ route('password.edit') }}">Change Password</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <button type="submit" class="dropdown-item">Logout</button>
-                            </form>
-                        </li>
-                    </ul>
+                    <span class="navbar-text fw-semibold text-dark">@yield('title', 'Dashboard')</span>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <button id="fullscreen-toggle" type="button" class="btn btn-light btn-sm" title="Toggle full screen">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+
+                    <div class="dropdown">
+                        <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-1"></i> {{ auth()->user()->name }}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ route('password.edit') }}">Change Password</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item">Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </nav>
 
@@ -225,6 +246,28 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('sidebar-toggle')?.addEventListener('click', function () {
+            const collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+        });
+
+        const fullscreenToggle = document.getElementById('fullscreen-toggle');
+        const fullscreenIcon = fullscreenToggle?.querySelector('i');
+
+        fullscreenToggle?.addEventListener('click', function () {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen();
+            }
+        });
+
+        document.addEventListener('fullscreenchange', function () {
+            fullscreenIcon?.classList.toggle('bi-arrows-fullscreen', ! document.fullscreenElement);
+            fullscreenIcon?.classList.toggle('bi-fullscreen-exit', !! document.fullscreenElement);
+        });
+    </script>
     @stack('scripts')
 </body>
 </html>
