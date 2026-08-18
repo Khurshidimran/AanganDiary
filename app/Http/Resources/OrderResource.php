@@ -27,6 +27,8 @@ class OrderResource extends JsonResource
             'cod_amount' => (float) $this->cod_amount,
             'cod_collected' => (bool) $this->cod_collected,
             'assigned_at' => $this->assigned_at?->toIso8601String(),
+            'scheduled_dispatch_at' => $this->scheduled_dispatch_at?->toIso8601String(),
+            'rider_instructions' => $this->rider_instructions,
             'picked_up_at' => $this->picked_up_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),
             'delivery_failure_reason' => $this->delivery_failure_reason,

@@ -23,9 +23,13 @@ class DispatchService
     ) {
     }
 
-    public function assign(Order $order, RiderProfile $rider): void
-    {
-        $order->update([
+    public function assign(
+        Order $order,
+        RiderProfile $rider,
+        ?string $riderInstructions = null,
+        ?\DateTimeInterface $scheduledDispatchAt = null,
+    ): void {
+        $updates = [
             'rider_id' => $rider->id,
             'assigned_at' => now(),
             'delivery_status' => Order::DELIVERY_STATUS_ASSIGNED,
@@ -33,7 +37,20 @@ class DispatchService
             // correctly handles partially-paid orders (e.g. an online deposit),
             // not just the fully-paid/fully-unpaid binary the total alone gives.
             'cod_amount' => $order->total_outstanding ?? $order->total,
-        ]);
+        ];
+
+        // Only touched when actually provided — a reassignment where staff
+        // leaves these blank keeps whatever was set previously rather than
+        // silently wiping it out.
+        if ($riderInstructions !== null) {
+            $updates['rider_instructions'] = $riderInstructions;
+        }
+
+        if ($scheduledDispatchAt !== null) {
+            $updates['scheduled_dispatch_at'] = $scheduledDispatchAt;
+        }
+
+        $order->update($updates);
 
         if ($rider->fcm_token) {
             $this->fcm->sendToToken(

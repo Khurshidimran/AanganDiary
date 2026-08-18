@@ -33,15 +33,22 @@
                             </td>
                             <td>
                                 @can('dispatch.manage')
-                                    <form method="POST" action="{{ route('dispatch.assign', $order) }}" class="d-flex gap-2">
+                                    <form method="POST" action="{{ route('dispatch.assign', $order) }}"
+                                          class="d-flex flex-column gap-1" style="min-width: 240px;">
                                         @csrf
-                                        <select name="rider_id" class="form-select form-select-sm" required>
-                                            <option value="">Select rider</option>
-                                            @foreach ($riders as $rider)
-                                                <option value="{{ $rider->id }}">{{ $rider->user->name }} ({{ $rider->zone ?? 'no zone' }})</option>
-                                            @endforeach
-                                        </select>
-                                        <button type="submit" class="btn btn-sm btn-primary text-nowrap">Assign</button>
+                                        <div class="d-flex gap-2">
+                                            <select name="rider_id" class="form-select form-select-sm" required>
+                                                <option value="">Select rider</option>
+                                                @foreach ($riders as $rider)
+                                                    <option value="{{ $rider->id }}">{{ $rider->user->name }} ({{ $rider->zone ?? 'no zone' }})</option>
+                                                @endforeach
+                                            </select>
+                                            <button type="submit" class="btn btn-sm btn-primary text-nowrap">Assign</button>
+                                        </div>
+                                        <input type="datetime-local" name="scheduled_dispatch_at"
+                                               class="form-control form-control-sm" title="Scheduled dispatch date/time (optional)">
+                                        <input type="text" name="rider_instructions" maxlength="1000"
+                                               class="form-control form-control-sm" placeholder="Instructions for rider (optional)">
                                     </form>
                                 @endcan
                             </td>
@@ -105,6 +112,14 @@
                                 <a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a>
                                 @if ($order->isCancelled())
                                     <span class="badge bg-danger ms-1">Cancelled in Shopify</span>
+                                @endif
+                                @if ($order->scheduled_dispatch_at)
+                                    <div class="small text-muted"><i class="bi bi-clock"></i> {{ $order->scheduled_dispatch_at->format('Y-m-d h:i A') }}</div>
+                                @endif
+                                @if ($order->rider_instructions)
+                                    <div class="small text-muted text-truncate" style="max-width: 220px;" title="{{ $order->rider_instructions }}">
+                                        <i class="bi bi-chat-left-text"></i> {{ $order->rider_instructions }}
+                                    </div>
                                 @endif
                             </td>
                             <td>{{ $order->rider?->user->name ?? '—' }}</td>

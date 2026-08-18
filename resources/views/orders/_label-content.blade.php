@@ -35,6 +35,11 @@
         <div style="font-size: 18px;">{{ $order->currency }} {{ number_format($order->total_outstanding ?? $order->total, 2) }}</div>
     </div>
 
+    @if ($order->rider_instructions)
+        <div class="divider"></div>
+        <div style="font-size: 10px;"><span class="fw-bold">Instructions:</span> {{ $order->rider_instructions }}</div>
+    @endif
+
     @if ($order->notes)
         <div class="divider"></div>
         <div style="font-size: 10px;"><span class="fw-bold">Note:</span> {{ $order->notes }}</div>

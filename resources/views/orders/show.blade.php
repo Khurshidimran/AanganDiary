@@ -59,6 +59,12 @@
                     <dd class="col-sm-4">{{ $order->assigned_at?->format('Y-m-d H:i') ?? '—' }}</dd>
                     <dt class="col-sm-2">Delivered</dt>
                     <dd class="col-sm-4">{{ $order->delivered_at?->format('Y-m-d H:i') ?? '—' }}</dd>
+                    <dt class="col-sm-2">Scheduled Dispatch</dt>
+                    <dd class="col-sm-4">{{ $order->scheduled_dispatch_at?->format('Y-m-d H:i') ?? '—' }}</dd>
+                    @if ($order->rider_instructions)
+                        <dt class="col-sm-2">Instructions for Rider</dt>
+                        <dd class="col-sm-10">{{ $order->rider_instructions }}</dd>
+                    @endif
                     @if ($order->delivery_failure_reason)
                         <dt class="col-sm-2">Failure Reason</dt>
                         <dd class="col-sm-10">{{ $order->delivery_failure_reason }}</dd>

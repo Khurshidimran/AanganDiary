@@ -185,6 +185,13 @@ partially applying.
 
 ## Notes for the mobile team
 
+- **`scheduled_dispatch_at`/`rider_instructions`**: dispatch staff can now set
+  a planned dispatch date/time and free-text instructions per order when
+  assigning it (e.g. "call before arriving", "leave at gate"). Both are
+  optional — nullable — and show up on every order object everywhere (list,
+  detail, checkout response). Surface `rider_instructions` prominently on the
+  delivery detail screen; it's meant to be read before/during the delivery,
+  not just logged.
 - **Proof of delivery** (`/delivered`): send `photo` and/or `signature` as
   `multipart/form-data` files, not base64 in JSON. **At least one of the two
   is required** — the request is rejected with a 422 if both are missing.

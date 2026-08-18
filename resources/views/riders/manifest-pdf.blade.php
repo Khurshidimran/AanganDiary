@@ -31,6 +31,7 @@
                 <th>Delivery Address</th>
                 <th>Order Detail</th>
                 <th class="text-end">Amount</th>
+                <th>Instructions</th>
             </tr>
         </thead>
         <tbody>
@@ -42,10 +43,11 @@
                     <td>{{ $order->formattedAddress() ?? '—' }}</td>
                     <td>{{ $order->itemsSummary() ?: '—' }}</td>
                     <td class="text-end">{{ $order->currency }} {{ number_format($order->total, 2) }}</td>
+                    <td>{{ $order->rider_instructions ?? '' }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" style="text-align: center; color: #777;">No active deliveries assigned right now.</td>
+                    <td colspan="7" style="text-align: center; color: #777;">No active deliveries assigned right now.</td>
                 </tr>
             @endforelse
         </tbody>

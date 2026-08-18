@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\RiderProfile;
 use App\Services\AuditLogService;
 use App\Services\DispatchService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -52,10 +53,19 @@ class DispatchController extends Controller
             return back()->with('error', 'This order cannot be assigned right now.');
         }
 
-        $validated = $request->validate(['rider_id' => ['required', 'exists:rider_profiles,id']]);
+        $validated = $request->validate([
+            'rider_id' => ['required', 'exists:rider_profiles,id'],
+            'rider_instructions' => ['nullable', 'string', 'max:1000'],
+            'scheduled_dispatch_at' => ['nullable', 'date'],
+        ]);
         $rider = RiderProfile::findOrFail($validated['rider_id']);
 
-        $this->dispatch->assign($order, $rider);
+        $this->dispatch->assign(
+            $order,
+            $rider,
+            $validated['rider_instructions'] ?? null,
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+        );
         $this->auditLog->log('assigned', 'orders', $order, null, ['rider_id' => $rider->id]);
 
         return back()->with('status', "Order assigned to {$rider->user->name}.");
