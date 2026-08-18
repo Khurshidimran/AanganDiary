@@ -56,6 +56,37 @@ class RiderController extends Controller
             ->download("delivery-manifest-{$rider->user->name}-".now()->format('Y-m-d').'.pdf');
     }
 
+    /**
+     * Admin-side manual override for check-in — no location check, since a
+     * staff member vouching for the rider is trusted the same way the
+     * rider's own location-verified mobile check-in is (see
+     * Api\Rider\RiderStatusController::checkIn()). Needed for riders whose
+     * app can't check in yet (not updated, phone issue, etc.) and for any
+     * rider that predates the check-in feature — without this, such a
+     * rider simply never appears as assignable on the Dispatch Board.
+     */
+    public function checkIn(RiderProfile $rider): RedirectResponse
+    {
+        $this->authorize('update', $rider);
+
+        $rider->update(['is_checked_in' => true, 'checked_in_at' => now()]);
+
+        $this->auditLog->log('checked_in', 'riders', $rider, null, ['is_checked_in' => true]);
+
+        return back()->with('status', "{$rider->user->name} checked in — now assignable on the Dispatch Board.");
+    }
+
+    public function checkOut(RiderProfile $rider): RedirectResponse
+    {
+        $this->authorize('update', $rider);
+
+        $rider->update(['is_checked_in' => false]);
+
+        $this->auditLog->log('checked_out', 'riders', $rider, null, ['is_checked_in' => false]);
+
+        return back()->with('status', "{$rider->user->name} checked out.");
+    }
+
     public function create(): View
     {
         $this->authorize('create', RiderProfile::class);

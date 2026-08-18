@@ -25,6 +25,7 @@
                         <th>Last Seen</th>
                         <th class="text-end">Wallet Balance</th>
                         <th>Status</th>
+                        <th>Check-In</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -57,6 +58,23 @@
                                     {{ str($rider->status)->headline() }}
                                 </span>
                             </td>
+                            <td>
+                                @if ($rider->is_checked_in)
+                                    <span class="badge bg-success">Checked In</span>
+                                @else
+                                    <span class="badge bg-secondary">Not Checked In</span>
+                                @endif
+                                @can('update', $rider)
+                                    <form method="POST"
+                                          action="{{ route($rider->is_checked_in ? 'riders.check-out' : 'riders.check-in', $rider) }}"
+                                          class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-link p-0 ms-1">
+                                            {{ $rider->is_checked_in ? 'Check Out' : 'Check In' }}
+                                        </button>
+                                    </form>
+                                @endcan
+                            </td>
                             <td class="text-end">
                                 @can('dispatch.view')
                                     <a href="{{ route('riders.manifest', $rider) }}" class="btn btn-sm btn-outline-secondary" title="Download delivery manifest">
@@ -82,7 +100,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">No riders found.</td>
+                            <td colspan="10" class="text-center text-muted py-4">No riders found.</td>
                         </tr>
                     @endforelse
                 </tbody>
