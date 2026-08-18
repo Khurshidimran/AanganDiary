@@ -11,7 +11,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 class OrdersExport implements FromCollection, WithHeadings, WithMapping
 {
     /**
-     * @param  Collection<int, Order>  $orders  Expected to have 'items' eager-loaded.
+     * @param  Collection<int, Order>  $orders  Expected to have 'items' and 'rider.user' eager-loaded.
      */
     public function __construct(private readonly Collection $orders)
     {
@@ -26,7 +26,7 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
     {
         return [
             'Order No', 'Customer Name', 'Customer Contact', 'Amount', 'Address',
-            'Order Detail', 'Order Date', 'Order Status', 'Delivery Status', 'Payment Status',
+            'Order Detail', 'Order Date', 'Order Status', 'Delivery Status', 'Payment Status', 'Rider Name',
         ];
     }
 
@@ -46,6 +46,7 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
             ucfirst($order->order_status),
             str($order->delivery_status)->headline(),
             str($order->payment_status)->headline(),
+            $order->rider?->user?->name ?? '',
         ];
     }
 }

@@ -31,6 +31,7 @@
                 <th>Order Status</th>
                 <th>Delivery Status</th>
                 <th>Payment Status</th>
+                <th>Rider Name</th>
             </tr>
         </thead>
         <tbody>
@@ -46,6 +47,7 @@
                     <td>{{ ucfirst($order->order_status) }}</td>
                     <td>{{ str($order->delivery_status)->headline() }}</td>
                     <td>{{ str($order->payment_status)->headline() }}</td>
+                    <td>{{ $order->rider?->user?->name ?? '' }}</td>
                 </tr>
             @endforeach
         </tbody>

@@ -58,7 +58,7 @@ class OrderController extends Controller
         $this->authorize('viewAny', Order::class);
 
         [$query] = $this->filteredQuery($request);
-        $orders = $query->with('items')->orderByDesc('shopify_created_at')->get();
+        $orders = $query->with(['items', 'rider.user'])->orderByDesc('shopify_created_at')->get();
 
         return Pdf::loadView('orders.report-pdf', compact('orders'))
             ->setPaper('a4', 'landscape')
@@ -70,7 +70,7 @@ class OrderController extends Controller
         $this->authorize('viewAny', Order::class);
 
         [$query] = $this->filteredQuery($request);
-        $orders = $query->with('items')->orderByDesc('shopify_created_at')->get();
+        $orders = $query->with(['items', 'rider.user'])->orderByDesc('shopify_created_at')->get();
 
         return Excel::download(new OrdersExport($orders), 'orders-report-'.now()->format('Y-m-d').'.xlsx');
     }
