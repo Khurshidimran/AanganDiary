@@ -46,7 +46,8 @@
                                             <button type="submit" class="btn btn-sm btn-primary text-nowrap">Assign</button>
                                         </div>
                                         <input type="datetime-local" name="scheduled_dispatch_at"
-                                               class="form-control form-control-sm" title="Scheduled dispatch date/time (optional)">
+                                               value="{{ now()->format('Y-m-d\TH:i') }}"
+                                               class="form-control form-control-sm" title="Scheduled dispatch date/time (defaults to now — adjust if needed)">
                                         <input type="text" name="rider_instructions" maxlength="1000"
                                                class="form-control form-control-sm" placeholder="Instructions for rider (optional)">
                                     </form>

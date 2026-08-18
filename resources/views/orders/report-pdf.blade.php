@@ -32,6 +32,8 @@
                 <th>Delivery Status</th>
                 <th>Payment Status</th>
                 <th>Rider Name</th>
+                <th>Scheduled Dispatch</th>
+                <th>Instructions</th>
             </tr>
         </thead>
         <tbody>
@@ -48,6 +50,8 @@
                     <td>{{ str($order->delivery_status)->headline() }}</td>
                     <td>{{ str($order->payment_status)->headline() }}</td>
                     <td>{{ $order->rider?->user?->name ?? '' }}</td>
+                    <td>{{ $order->scheduled_dispatch_at?->format('Y-m-d h:i A') ?? '' }}</td>
+                    <td>{{ $order->rider_instructions ?? '' }}</td>
                 </tr>
             @endforeach
         </tbody>

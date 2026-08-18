@@ -27,6 +27,7 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
         return [
             'Order No', 'Customer Name', 'Customer Contact', 'Amount', 'Address',
             'Order Detail', 'Order Date', 'Order Status', 'Delivery Status', 'Payment Status', 'Rider Name',
+            'Scheduled Dispatch', 'Instructions for Rider',
         ];
     }
 
@@ -47,6 +48,8 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
             str($order->delivery_status)->headline(),
             str($order->payment_status)->headline(),
             $order->rider?->user?->name ?? '',
+            $order->scheduled_dispatch_at?->format('Y-m-d H:i') ?? '',
+            $order->rider_instructions ?? '',
         ];
     }
 }
