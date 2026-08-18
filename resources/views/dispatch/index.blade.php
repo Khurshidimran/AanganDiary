@@ -13,6 +13,7 @@
                     <tr>
                         <th>Order</th>
                         <th>Customer</th>
+                        <th>Address</th>
                         <th class="text-end">Total</th>
                         <th>Payment</th>
                         <th>Assign Rider</th>
@@ -23,6 +24,7 @@
                         <tr>
                             <td><a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a></td>
                             <td>{{ $order->customer_name ?? '—' }}</td>
+                            <td>{{ $order->formattedAddress() ?? '—' }}</td>
                             <td class="text-end">{{ $order->currency }} {{ number_format($order->total, 2) }}</td>
                             <td>
                                 <span class="badge {{ $order->payment_status === 'paid' ? 'bg-success' : 'bg-secondary' }}">
@@ -46,7 +48,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center text-muted py-4">No confirmed orders awaiting assignment.</td>
+                            <td colspan="6" class="text-center text-muted py-4">No confirmed orders awaiting assignment.</td>
                         </tr>
                     @endforelse
                 </tbody>
