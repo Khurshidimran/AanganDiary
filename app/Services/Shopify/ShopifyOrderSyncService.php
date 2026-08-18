@@ -119,13 +119,17 @@ class ShopifyOrderSyncService
 
     private function tryAutoConfirm(Order $order): void
     {
+        // Confirmation is unconditional — a stock shortage or missing
+        // warehouse config no longer blocks it, only stops the allocation
+        // itself. Inventory accuracy is a separate concern from getting the
+        // order into the dispatch pipeline.
         try {
             $this->fulfillment->allocateStock($order);
-            $order->update(['order_status' => Order::ORDER_STATUS_CONFIRMED]);
         } catch (InsufficientStockException|WarehouseNotConfiguredException) {
-            // Left pending — staff can confirm manually once stock/warehouse
-            // config is sorted out, exactly like today's manual confirm flow.
+            // Stock not allocated — order still confirms below regardless.
         }
+
+        $order->update(['order_status' => Order::ORDER_STATUS_CONFIRMED]);
     }
 
     /**

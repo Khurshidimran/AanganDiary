@@ -141,18 +141,24 @@ class OrderController extends Controller
     {
         $this->authorize('confirm', $order);
 
+        // Confirmation is a business decision independent of inventory —
+        // stock is still allocated when possible, but a shortage or missing
+        // warehouse config no longer blocks the order from being confirmed.
+        $stockError = null;
+
         try {
-            DB::transaction(function () use ($order) {
-                $this->fulfillment->allocateStock($order);
-                $order->update(['order_status' => Order::ORDER_STATUS_CONFIRMED]);
-            });
+            $this->fulfillment->allocateStock($order);
         } catch (InsufficientStockException|WarehouseNotConfiguredException $e) {
-            return back()->with('error', "Cannot confirm order: {$e->getMessage()}");
+            $stockError = $e->getMessage();
         }
+
+        $order->update(['order_status' => Order::ORDER_STATUS_CONFIRMED]);
 
         $this->auditLog->log('confirmed', 'orders', $order, null, ['order_status' => $order->order_status]);
 
-        return back()->with('status', 'Order confirmed and stock allocated.');
+        return back()->with('status', $stockError
+            ? "Order confirmed. Stock was not allocated: {$stockError}"
+            : 'Order confirmed and stock allocated.');
     }
 
     public function cancel(Order $order): RedirectResponse
