@@ -35,7 +35,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "v1", "rider", "login"]
             },
-            "description": "Exchanges rider credentials for a bearer token. Rejects accounts that aren't riders (422) and inactive rider accounts (422). Rate-limited to 5 attempts/minute per IP.\n\nResponse:\n```json\n{\n  \"token\": \"1|abcdef...\",\n  \"rider\": {\n    \"id\": \"uuid\",\n    \"name\": \"Ali Rider\",\n    \"phone\": \"03001234567\",\n    \"zone\": \"Gulberg\",\n    \"status\": \"active\",\n    \"wallet_balance\": 260.0\n  }\n}\n```"
+            "description": "Exchanges rider credentials for a bearer token. Rejects accounts that aren't riders (422) and inactive rider accounts (422). Rate-limited to 5 attempts/minute per IP.\n\nResponse:\n```json\n{\n  \"token\": \"1|abcdef...\",\n  \"rider\": {\n    \"id\": \"uuid\",\n    \"name\": \"Ali Rider\",\n    \"phone\": \"03001234567\",\n    \"zone\": \"Gulberg\",\n    \"status\": \"active\",\n    \"wallet_balance\": 260.0,\n    \"is_online\": false,\n    \"is_checked_in\": false\n  }\n}\n```\nUse `is_online`/`is_checked_in` to set the initial state of the main-screen switch and check-in indicator on app load — don't assume both start false on every login, a rider may still be online/checked-in from an earlier session."
           },
           "event": [
             {
@@ -231,6 +231,103 @@
               "path": ["api", "v1", "rider", "deliveries", "{{order_id}}", "returned"]
             },
             "description": "Marks the goods as physically returned (never actually handed over) and releases the allocated stock back into inventory. This is an **alternative to Mark Failed**, not a follow-up to it — valid from the same states (assigned, picked_up, out_for_delivery), not from an order that's already 'failed'. Use this when you're turning back with the parcel intact (e.g. customer refuses on the spot) rather than logging a failed attempt that might get retried.\n\n`returned` is terminal — no further status transitions are possible on this order after this call. 422 if the order isn't in an eligible state, 403 if it's not your delivery."
+          }
+        },
+        {
+          "name": "Checkout (Arrange Delivery Route)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_ids\": [\n    \"uuid-of-order-you-want-to-deliver-1st\",\n    \"uuid-of-order-you-want-to-deliver-2nd\",\n    \"uuid-of-order-you-want-to-deliver-3rd\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/deliveries/checkout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "deliveries", "checkout"]
+            },
+            "description": "Call this after you've loaded your parcels and decided the order you want to deliver them in. `order_ids` must be every id in your chosen order — position in the array is the stop order (1st id = stop 1, etc). All ids must belong to you or the whole request is rejected with a 422.\n\n**This only records the planned sequence — it does not change any order's `delivery_status`.** You still tap Mark Picked Up / Mark Out For Delivery / Mark Delivered on each order yourself as you physically work through your route; checkout just tells you (and the admin dashboard) what order you planned to do them in.\n\nResponse:\n```json\n{\n  \"route\": [ { ...full order objects, sorted by route_sequence... } ],\n  \"start_order\": { ...same shape, this is route[0], your first stop... }\n}\n```\nEvery order object in the response (and in Get Delivery Detail / List Deliveries from now on) also includes a `route_sequence` integer field so you can re-render the planned order any time without calling checkout again."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Status & Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "dashboard"]
+            },
+            "description": "Everything the main screen's summary cards need in one call.\n\n```json\n{\n  \"is_online\": true,\n  \"is_checked_in\": true,\n  \"wallet_balance\": 260.0,\n  \"assigned_orders_count\": 3,\n  \"done_today_count\": 5\n}\n```\n`assigned_orders_count` is strictly orders in the `assigned` state (not yet picked up) — it does not include picked_up/out_for_delivery. `done_today_count` is orders you've marked `delivered` today (server date, not the rider's local timezone)."
+          }
+        },
+        {
+          "name": "Go Online",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/online",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "online"]
+            },
+            "description": "Sets the main-screen switch to online. This is just an availability flag — it does **not** check your location and does **not** by itself make you eligible for new assignments (see Check In for that). Response: `{\"is_online\": true}`."
+          }
+        },
+        {
+          "name": "Go Offline",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/offline",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "offline"]
+            },
+            "description": "Sets the main-screen switch to offline. Independent of check-in status — going offline does not automatically check you out. Response: `{\"is_online\": false}`."
+          }
+        },
+        {
+          "name": "Check In",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 31.5204,\n  \"longitude\": 74.3587\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/check-in",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "check-in"]
+            },
+            "description": "Location-verified check-in — this is what actually makes you visible on the dispatch board for new assignments. Send the device's current GPS coordinates; the server checks you're within 200 meters of your assigned warehouse.\n\nSuccess (200):\n```json\n{\n  \"is_checked_in\": true,\n  \"checked_in_at\": \"2026-08-18T09:13:57+00:00\",\n  \"distance_meters\": 42.3\n}\n```\n\nFailure (422) if you're too far away — the message includes your actual distance, useful for showing the rider why it failed:\n```json\n{ \"message\": \"You need to be within 200m of your warehouse to check in — you are about 850m away.\" }\n```\nAlso 422 if you have no warehouse assigned, or your warehouse has no location configured — both are dispatcher-side config issues, not something the app can fix."
+          }
+        },
+        {
+          "name": "Check Out",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rider/check-out",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rider", "check-out"]
+            },
+            "description": "Checks you out — you immediately stop being eligible for new assignments (existing assigned deliveries are unaffected, you keep them). No location needed. Response: `{\"is_checked_in\": false}`."
           }
         }
       ]

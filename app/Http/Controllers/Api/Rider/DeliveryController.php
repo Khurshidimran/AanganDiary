@@ -119,6 +119,43 @@ class DeliveryController extends Controller
         return new OrderResource($order->fresh('items'));
     }
 
+    /**
+     * Records the rider's chosen delivery order — purely a planning/display
+     * sequence (route_sequence), independent of delivery_status. Doesn't
+     * transition any order's status; the rider still marks each one picked
+     * up / out for delivery individually as they physically work through it.
+     */
+    public function checkout(Request $request): JsonResponse
+    {
+        $rider = $request->user()->riderProfile;
+
+        $validated = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['string'],
+        ]);
+
+        $orders = Order::where('rider_id', $rider->id)
+            ->whereIn('id', $validated['order_ids'])
+            ->get()
+            ->keyBy('id');
+
+        if ($orders->count() !== count($validated['order_ids'])) {
+            abort(422, 'One or more orders are not assigned to you.');
+        }
+
+        foreach (array_values($validated['order_ids']) as $index => $orderId) {
+            $orders->get($orderId)->update(['route_sequence' => $index + 1]);
+        }
+
+        $orders->load('items');
+        $route = $orders->sortBy('route_sequence')->values();
+
+        return response()->json([
+            'route' => OrderResource::collection($route),
+            'start_order' => new OrderResource($route->first()),
+        ]);
+    }
+
     private function ensureOwnership(Request $request, Order $order): void
     {
         abort_unless(

@@ -56,6 +56,31 @@ Deactivation takes effect immediately — if a rider's account is set to
 inactive while they still hold a valid token, their very next request gets a
 403, not just their next login attempt.
 
+## Rider status: online, check-in, and the main-screen dashboard
+
+Three related but **independent** concepts — don't conflate them:
+
+- **Online/offline** (`POST /online`, `POST /offline`) — a simple availability
+  flag for the main-screen switch. No location involved, doesn't affect
+  anything else server-side. A rider can be online without being checked in.
+- **Check-in/check-out** (`POST /check-in`, `POST /check-out`) — this is what
+  actually matters for getting work. Check-in sends the device's current GPS
+  coordinates; the server verifies you're within **200 meters** of your
+  assigned warehouse before accepting it. Only checked-in riders show up on
+  the dispatch board for new assignments — if a rider isn't checked in,
+  dispatch staff can't assign anything to them at all. Check-out has no
+  location requirement and doesn't affect deliveries you already have.
+- **Dashboard** (`GET /dashboard`) — one call for everything the main
+  screen's summary cards need: `is_online`, `is_checked_in`, `wallet_balance`,
+  `assigned_orders_count` (orders in the `assigned` state specifically, not
+  the broader in-progress set), and `done_today_count` (delivered today,
+  server date). Call this on app open and after check-in/check-out to refresh
+  the cards.
+
+A rider must physically be at the warehouse to check in — this can't be
+faked from across town, so build the check-in flow assuming GPS accuracy
+matters (request high-accuracy location, not a cached/low-power fix).
+
 ## Delivery status lifecycle
 
 ```
@@ -88,8 +113,13 @@ to each other, not a sequence**:
 |---|---|---|
 | POST | `/login` | Get a token |
 | POST | `/logout` | Revoke the current token |
+| GET | `/dashboard` | Main-screen summary: online/check-in status, wallet, counts |
+| POST | `/online` / `/offline` | Toggle the main-screen availability switch |
+| POST | `/check-in` | Location-verified — required to be assignable on the dispatch board |
+| POST | `/check-out` | Stop being assignable; existing deliveries unaffected |
 | GET | `/deliveries` | List your assigned deliveries (`?status=` to filter) |
 | GET | `/deliveries/{order}` | One delivery's full detail |
+| POST | `/deliveries/checkout` | Record your planned delivery route order — `{"order_ids": [...]}` |
 | POST | `/deliveries/{order}/picked-up` | Mark picked up |
 | POST | `/deliveries/{order}/out-for-delivery` | Mark en route |
 | POST | `/deliveries/picked-up/bulk` | Mark several picked up in one call — `{"order_ids": [...]}` |
@@ -125,6 +155,34 @@ so you can update local state directly without a follow-up `GET` per order.
 Check `skipped` to know which ones didn't go through and why — don't infer
 success purely from the `200` status.
 
+## Checkout — arranging your delivery route
+
+Once you've got your assigned orders loaded and decided what order you want
+to deliver them in, call `POST /deliveries/checkout` with `order_ids` listing
+every order in your chosen sequence:
+
+```json
+{ "order_ids": ["uuid-stop-1", "uuid-stop-2", "uuid-stop-3"] }
+```
+
+This **only records the sequence** — it does not touch `delivery_status`. You
+still call Mark Picked Up / Mark Out For Delivery / Mark Delivered yourself
+on each order as you actually work through it; checkout just tells the app
+(and the admin dashboard) what order you planned. Response:
+
+```json
+{
+  "route": [ { "...": "full order objects, sorted by route_sequence" } ],
+  "start_order": { "...": "route[0] — your first stop" }
+}
+```
+
+Every order object everywhere in this API (list, detail, bulk responses)
+also carries its `route_sequence` from now on, so you can re-render the
+planned order without calling checkout again. All submitted ids must belong
+to you — if any don't, the whole request is rejected with a 422 rather than
+partially applying.
+
 ## Notes for the mobile team
 
 - **Proof of delivery** (`/delivered`): send `photo` and/or `signature` as
@@ -137,7 +195,11 @@ success purely from the `200` status.
   nothing to submit manually for that; just check `/wallet` to see it reflected.
 - **Location pings**: ping every 30–60 seconds while active. Every ping is
   retained (full history, not just "last known position"), so don't ping much
-  more frequently than that or the data volume grows unnecessarily.
+  more frequently than that or the data volume grows unnecessarily. This is
+  the same endpoint for both general background tracking and building a
+  during-delivery trail — there's no separate per-delivery location endpoint;
+  pings aren't tagged to a specific order, they're just a continuous history
+  for this rider.
 - **Push notifications**: register your FCM token via `/device-token` right
   after login, and again whenever Firebase's SDK issues a refreshed token.
   You'll receive a push whenever a dispatcher assigns you a delivery — both a

@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'shopify_order_id', 'shopify_order_number', 'customer_name', 'customer_email', 'customer_phone',
     'billing_address', 'shipping_address', 'order_status', 'payment_status', 'delivery_status',
     'currency', 'subtotal', 'tax_total', 'shipping_total', 'total', 'total_outstanding', 'notes', 'shopify_created_at',
-    'rider_id', 'assigned_at', 'picked_up_at', 'delivered_at', 'cod_amount', 'cod_collected',
+    'rider_id', 'route_sequence', 'assigned_at', 'picked_up_at', 'delivered_at', 'cod_amount', 'cod_collected',
     'delivery_failure_reason', 'pod_photo_path', 'pod_signature_path', 'pod_captured_at',
 ])]
 class Order extends Model
@@ -54,6 +54,7 @@ class Order extends Model
             'cod_amount' => 'decimal:2',
             'cod_collected' => 'boolean',
             'pod_captured_at' => 'datetime',
+            'route_sequence' => 'integer',
         ];
     }
 

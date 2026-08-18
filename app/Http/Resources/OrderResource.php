@@ -20,6 +20,7 @@ class OrderResource extends JsonResource
             'customer_phone' => $this->customer_phone,
             'shipping_address' => $this->shipping_address,
             'delivery_status' => $this->delivery_status,
+            'route_sequence' => $this->route_sequence,
             'payment_status' => $this->payment_status,
             'currency' => $this->currency,
             'total' => (float) $this->total,

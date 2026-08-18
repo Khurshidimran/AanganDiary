@@ -52,6 +52,8 @@ class AuthController extends Controller
                 'zone' => $rider->zone,
                 'status' => $rider->status,
                 'wallet_balance' => (float) $rider->wallet_balance,
+                'is_online' => (bool) $rider->is_online,
+                'is_checked_in' => (bool) $rider->is_checked_in,
             ],
         ]);
     }

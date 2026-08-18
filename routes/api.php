@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Rider\AuthController as RiderAuthController;
 use App\Http\Controllers\Api\Rider\DeliveryController as RiderDeliveryController;
 use App\Http\Controllers\Api\Rider\DeviceTokenController;
 use App\Http\Controllers\Api\Rider\LocationController;
+use App\Http\Controllers\Api\Rider\RiderStatusController;
 use App\Http\Controllers\Api\Rider\WalletController as RiderWalletApiController;
 use App\Http\Controllers\ShopifyWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -41,11 +42,18 @@ Route::prefix('v1/rider')->name('api.rider.')->group(function () {
         Route::post('deliveries/{order}/delivered', [RiderDeliveryController::class, 'delivered'])->name('deliveries.delivered');
         Route::post('deliveries/{order}/failed', [RiderDeliveryController::class, 'failed'])->name('deliveries.failed');
         Route::post('deliveries/{order}/returned', [RiderDeliveryController::class, 'returned'])->name('deliveries.returned');
+        Route::post('deliveries/checkout', [RiderDeliveryController::class, 'checkout'])->name('deliveries.checkout');
 
         Route::get('wallet', [RiderWalletApiController::class, 'show'])->name('wallet');
 
         Route::post('location', [LocationController::class, 'store'])->name('location.store');
         Route::post('device-token', [DeviceTokenController::class, 'store'])->name('device-token.store');
+
+        Route::get('dashboard', [RiderStatusController::class, 'dashboard'])->name('dashboard');
+        Route::post('online', [RiderStatusController::class, 'online'])->name('online');
+        Route::post('offline', [RiderStatusController::class, 'offline'])->name('offline');
+        Route::post('check-in', [RiderStatusController::class, 'checkIn'])->name('check-in');
+        Route::post('check-out', [RiderStatusController::class, 'checkOut'])->name('check-out');
     });
 });
 

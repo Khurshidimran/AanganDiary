@@ -33,7 +33,13 @@ class DispatchController extends Controller
             Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
         ])->with('rider.user')->orderBy('assigned_at')->get();
 
-        $riders = RiderProfile::with('user')->where('status', RiderProfile::STATUS_ACTIVE)->get();
+        // Only riders who've checked in (location-verified at their warehouse
+        // via the mobile app) are eligible for assignment — see
+        // Api\Rider\RiderStatusController::checkIn().
+        $riders = RiderProfile::with('user')
+            ->where('status', RiderProfile::STATUS_ACTIVE)
+            ->where('is_checked_in', true)
+            ->get();
 
         return view('dispatch.index', compact('awaiting', 'inProgress', 'riders'));
     }
