@@ -61,6 +61,30 @@
                 </div>
             </div>
         </div>
+        <div class="col-6 col-md-2">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <div class="fs-3 fw-bold text-primary">{{ $scheduledToday->count() }}</div>
+                    <div class="small text-muted">To Be Delivered Today</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <div class="fs-3 fw-bold text-info">{{ $outForDelivery->count() }}</div>
+                    <div class="small text-muted">Out For Delivery</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <div class="fs-3 fw-bold text-success">{{ $deliveredToday->count() }}</div>
+                    <div class="small text-muted">Delivered Today</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row g-3">
