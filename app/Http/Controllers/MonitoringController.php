@@ -35,6 +35,30 @@ class MonitoringController extends Controller
             ->take(10)
             ->get();
 
+        // "Going to be delivered today" — scheduled for today and not
+        // already finished, so this list only shows what still needs
+        // attention rather than growing to include today's completed ones.
+        $scheduledToday = Order::with('rider.user')
+            ->whereBetween('scheduled_dispatch_at', [$today, $today->copy()->endOfDay()])
+            ->whereNotIn('delivery_status', [
+                Order::DELIVERY_STATUS_DELIVERED,
+                Order::DELIVERY_STATUS_FAILED,
+                Order::DELIVERY_STATUS_RETURNED,
+            ])
+            ->orderBy('scheduled_dispatch_at')
+            ->get();
+
+        $outForDelivery = Order::with('rider.user')
+            ->where('delivery_status', Order::DELIVERY_STATUS_OUT_FOR_DELIVERY)
+            ->orderBy('assigned_at')
+            ->get();
+
+        $deliveredToday = Order::with('rider.user')
+            ->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)
+            ->whereDate('delivered_at', $today)
+            ->latest('delivered_at')
+            ->get();
+
         // Positive wallet_balance means the rider is holding COD cash they've
         // collected but haven't handed over to admin yet (see RiderWalletService
         // — COD_COLLECTED credits the balance, COD_SETTLED debits it back down).
@@ -47,6 +71,7 @@ class MonitoringController extends Controller
 
         return view('monitoring.index', compact(
             'stats', 'recentOrders', 'cancelledOrders', 'codOutstanding', 'codOutstandingTotal',
+            'scheduledToday', 'outForDelivery', 'deliveredToday',
         ));
     }
 }

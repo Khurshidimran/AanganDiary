@@ -171,4 +171,98 @@
             </div>
         </div>
     </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">To Be Delivered Today ({{ $scheduledToday->count() }})</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Rider</th>
+                                <th>Assigned</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($scheduledToday as $order)
+                                <tr>
+                                    <td><a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a></td>
+                                    <td>{{ $order->rider?->user?->name ?? '—' }}</td>
+                                    <td class="small text-muted">{{ $order->assigned_at?->format('Y-m-d h:i A') ?? '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-4">Nothing scheduled for today.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">Out For Delivery ({{ $outForDelivery->count() }})</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Rider</th>
+                                <th>Assigned</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($outForDelivery as $order)
+                                <tr>
+                                    <td><a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a></td>
+                                    <td>{{ $order->rider?->user?->name ?? '—' }}</td>
+                                    <td class="small text-muted">{{ $order->assigned_at?->format('Y-m-d h:i A') ?? '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-4">Nothing out for delivery right now.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">Delivered Today ({{ $deliveredToday->count() }})</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Rider</th>
+                                <th>Assigned</th>
+                                <th>Delivered</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($deliveredToday as $order)
+                                <tr>
+                                    <td><a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a></td>
+                                    <td>{{ $order->rider?->user?->name ?? '—' }}</td>
+                                    <td class="small text-muted">{{ $order->assigned_at?->format('Y-m-d h:i A') ?? '—' }}</td>
+                                    <td class="small text-muted">{{ $order->delivered_at?->format('Y-m-d h:i A') ?? '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">Nothing delivered yet today.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
