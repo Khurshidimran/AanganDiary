@@ -36,6 +36,12 @@
                     </div>
                 </div>
                 <div class="col-6 col-md">
+                    <div class="border rounded p-3 h-100 {{ $statusCounts['failed'] > 0 ? 'border-danger' : '' }}">
+                        <div class="h4 mb-0 {{ $statusCounts['failed'] > 0 ? 'text-danger' : '' }}">{{ $statusCounts['failed'] }}</div>
+                        <div class="text-muted small">Failed</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md">
                     <div class="border rounded p-3 h-100">
                         <div class="h4 mb-0">{{ $statusCounts['assigned'] }}</div>
                         <div class="text-muted small">Assigned</div>
@@ -57,6 +63,12 @@
                     <div class="border rounded p-3 h-100">
                         <div class="h4 mb-0">{{ $statusCounts['delivered'] }}</div>
                         <div class="text-muted small">Delivered</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md">
+                    <div class="border rounded p-3 h-100">
+                        <div class="h4 mb-0">{{ $statusCounts['returned'] }}</div>
+                        <div class="text-muted small">Returned</div>
                     </div>
                 </div>
             </div>
@@ -83,10 +95,12 @@
                 <div class="d-flex gap-1 flex-wrap" id="status-filter">
                     <button type="button" class="btn btn-sm btn-dark filter-pill" data-filter="all">All</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary filter-pill" data-filter="pending">Pending</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary filter-pill" data-filter="failed">Failed</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary filter-pill" data-filter="assigned">Assigned</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary filter-pill" data-filter="picked_up">Pickup</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary filter-pill" data-filter="out_for_delivery">Out for delivery</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary filter-pill" data-filter="delivered">Delivered</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary filter-pill" data-filter="returned">Returned</button>
                 </div>
             </div>
 
@@ -114,7 +128,7 @@
             <div id="orders-list" class="d-flex flex-column gap-3">
                 @forelse ($orders as $order)
                     @php
-                        $bucket = in_array($order->delivery_status, ['pending', 'failed']) ? 'pending' : $order->delivery_status;
+                        $bucket = $order->delivery_status;
                         $badge = match ($order->delivery_status) {
                             'pending' => ['bg-danger-subtle text-danger-emphasis border border-danger-subtle', 'Pending'],
                             'failed' => ['bg-danger text-white', 'Failed'],
@@ -122,6 +136,7 @@
                             'picked_up' => ['bg-info-subtle text-info-emphasis border border-info-subtle', 'Pickup'],
                             'out_for_delivery' => ['bg-primary-subtle text-primary-emphasis border border-primary-subtle', 'Out for delivery'],
                             'delivered' => ['bg-success-subtle text-success-emphasis border border-success-subtle', 'Delivered'],
+                            'returned' => ['bg-warning-subtle text-warning-emphasis border border-warning-subtle', 'Returned'],
                             default => ['bg-light text-dark border', str($order->delivery_status)->headline()],
                         };
                         $itemCount = $order->items->count();
@@ -167,10 +182,13 @@
 
                             @can('dispatch.manage')
                                 @if ($order->canBeAssigned() && ! $order->isCancelled())
+                                    @if ($order->delivery_status === 'failed')
+                                        <div class="text-muted small text-uppercase mb-1" style="font-size: .7rem;">Relocate — reassign rider:</div>
+                                    @endif
                                     <form method="POST" action="{{ route('dispatch.assign', $order) }}" class="js-dispatch-form">
                                         @csrf
                                         <select name="rider_id" class="form-select form-select-sm" required onchange="this.form.requestSubmit()">
-                                            <option value="">Assign a rider...</option>
+                                            <option value="">{{ $order->delivery_status === 'failed' ? 'Reassign a rider...' : 'Assign a rider...' }}</option>
                                             @foreach ($riders as $rider)
                                                 <option value="{{ $rider->id }}" @selected($order->rider_id === $rider->id)>
                                                     {{ $rider->user->name }} ({{ $rider->zone ?? 'no zone' }})
@@ -235,6 +253,11 @@
                                         <i class="bi bi-check-circle text-success"></i>
                                         Delivered by {{ $order->rider?->user->name ?? '—' }}
                                         @if ($order->delivered_at) at {{ $order->delivered_at->format('h:i A') }} @endif
+                                    </div>
+                                @elseif ($order->delivery_status === 'returned')
+                                    <div class="small text-muted">
+                                        <i class="bi bi-arrow-return-left text-warning"></i>
+                                        Returned by {{ $order->rider?->user->name ?? '—' }} — stock released back to inventory.
                                     </div>
                                 @endif
 

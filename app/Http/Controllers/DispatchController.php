@@ -47,6 +47,7 @@ class DispatchController extends Controller
                         Order::DELIVERY_STATUS_PICKED_UP,
                         Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
                         Order::DELIVERY_STATUS_DELIVERED,
+                        Order::DELIVERY_STATUS_RETURNED,
                     ]);
             })
             // A cancelled order that never got past "pending" is just noise
@@ -62,7 +63,7 @@ class DispatchController extends Controller
                         Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
                     ]);
             })
-            ->orderByRaw("FIELD(delivery_status, 'pending','failed','assigned','picked_up','out_for_delivery','delivered')")
+            ->orderByRaw("FIELD(delivery_status, 'pending','failed','assigned','picked_up','out_for_delivery','delivered','returned')")
             ->orderBy('shopify_created_at')
             ->get();
 
@@ -89,11 +90,13 @@ class DispatchController extends Controller
         $riders->each(fn (RiderProfile $rider) => $rider->setRelation('orders', $ordersByRider->get($rider->id, collect())));
 
         $statusCounts = [
-            'pending' => $orders->whereIn('delivery_status', [Order::DELIVERY_STATUS_PENDING, Order::DELIVERY_STATUS_FAILED])->count(),
+            'pending' => $orders->where('delivery_status', Order::DELIVERY_STATUS_PENDING)->count(),
+            'failed' => $orders->where('delivery_status', Order::DELIVERY_STATUS_FAILED)->count(),
             'assigned' => $orders->where('delivery_status', Order::DELIVERY_STATUS_ASSIGNED)->count(),
             'picked_up' => $orders->where('delivery_status', Order::DELIVERY_STATUS_PICKED_UP)->count(),
             'out_for_delivery' => $orders->where('delivery_status', Order::DELIVERY_STATUS_OUT_FOR_DELIVERY)->count(),
             'delivered' => $orders->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)->count(),
+            'returned' => $orders->where('delivery_status', Order::DELIVERY_STATUS_RETURNED)->count(),
         ];
 
         $defaultWarehouseId = app(SettingsService::class)->group('inventory')->get('default_warehouse_id');
