@@ -10,6 +10,7 @@ use App\Models\RiderProfile;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\AuditLogService;
+use App\Services\RiderTripService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -22,8 +23,10 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class RiderController extends Controller
 {
-    public function __construct(private readonly AuditLogService $auditLog)
-    {
+    public function __construct(
+        private readonly AuditLogService $auditLog,
+        private readonly RiderTripService $trips,
+    ) {
     }
 
     public function index(): View
@@ -77,6 +80,10 @@ class RiderController extends Controller
 
         $orders = Order::with('rider.user')
             ->whereNotNull('rider_id')
+            // A cancelled order shouldn't count toward a rider's workload —
+            // it was never actually delivered regardless of how far dispatch
+            // got before Shopify cancelled it.
+            ->where('order_status', '!=', Order::ORDER_STATUS_CANCELLED)
             ->whereBetween('shopify_created_at', [$dateFrom, $dateTo])
             ->get();
 
@@ -142,6 +149,7 @@ class RiderController extends Controller
         $this->authorize('update', $rider);
 
         $rider->update(['is_checked_in' => true, 'checked_in_at' => now()]);
+        $this->trips->openTrip($rider);
 
         $this->auditLog->log('checked_in', 'riders', $rider, null, ['is_checked_in' => true]);
 
@@ -153,10 +161,22 @@ class RiderController extends Controller
         $this->authorize('update', $rider);
 
         $rider->update(['is_checked_in' => false]);
+        $this->trips->closeTrip($rider);
 
         $this->auditLog->log('checked_out', 'riders', $rider, null, ['is_checked_in' => false]);
 
         return back()->with('status', "{$rider->user->name} checked out.");
+    }
+
+    public function deactivate(RiderProfile $rider): RedirectResponse
+    {
+        $this->authorize('update', $rider);
+
+        $rider->update(['status' => RiderProfile::STATUS_INACTIVE]);
+
+        $this->auditLog->log('deactivated', 'riders', $rider, null, ['status' => RiderProfile::STATUS_INACTIVE]);
+
+        return back()->with('status', "{$rider->user->name} deactivated.");
     }
 
     public function create(): View

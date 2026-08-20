@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\PayRiderEarningsRequest;
+use App\Http\Requests\RecordCashDepositRequest;
 use App\Models\RiderProfile;
 use App\Models\RiderWalletTransaction;
 use App\Services\AuditLogService;
 use App\Services\RiderWalletService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
 
 class RiderWalletController extends Controller
 {
@@ -19,54 +21,48 @@ class RiderWalletController extends Controller
     ) {
     }
 
-    public function show(RiderProfile $rider): View
-    {
-        $this->authorize('rider_wallet.view');
-
-        $transactions = $rider->walletTransactions()
-            ->with('recordedBy')
-            ->latest('created_at')
-            ->paginate(30);
-
-        return view('riders.wallet', compact('rider', 'transactions'));
-    }
-
-    public function settleCod(Request $request, RiderProfile $rider): RedirectResponse
+    public function recordCashDeposit(RecordCashDepositRequest $request, RiderProfile $rider): RedirectResponse
     {
         $this->authorize('rider_wallet.manage');
 
-        $validated = $request->validate(['amount' => ['required', 'numeric', 'min:0.01']]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($rider, $validated) {
             $this->wallet->postTransaction(
                 rider: $rider,
                 transactionType: RiderWalletTransaction::TYPE_COD_SETTLED,
                 amount: -$validated['amount'],
-                notes: 'COD cash settled by rider',
+                notes: $validated['notes'] ?? 'Cash deposit recorded',
+                paymentMethod: $validated['payment_method'],
+                referenceNumber: $validated['reference_number'] ?? null,
+                transactionDate: Carbon::parse($validated['deposit_date']),
             );
         });
 
-        $this->auditLog->log('cod_settled', 'riders', $rider, null, ['amount' => $validated['amount']]);
+        $this->auditLog->log('cash_deposited', 'riders', $rider, null, $validated);
 
-        return back()->with('status', 'COD settlement recorded.');
+        return back()->with('status', 'Cash deposit recorded.');
     }
 
-    public function payEarnings(Request $request, RiderProfile $rider): RedirectResponse
+    public function payRider(PayRiderEarningsRequest $request, RiderProfile $rider): RedirectResponse
     {
         $this->authorize('rider_wallet.manage');
 
-        $validated = $request->validate(['amount' => ['required', 'numeric', 'min:0.01']]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($rider, $validated) {
             $this->wallet->postTransaction(
                 rider: $rider,
                 transactionType: RiderWalletTransaction::TYPE_EARNING_PAID,
                 amount: $validated['amount'],
-                notes: 'Earnings paid out to rider',
+                notes: $validated['notes'] ?? 'Earnings paid out to rider',
+                paymentMethod: $validated['payment_method'],
+                referenceNumber: $validated['reference_number'] ?? null,
+                transactionDate: Carbon::parse($validated['payment_date']),
             );
         });
 
-        $this->auditLog->log('earnings_paid', 'riders', $rider, null, ['amount' => $validated['amount']]);
+        $this->auditLog->log('earnings_paid', 'riders', $rider, null, $validated);
 
         return back()->with('status', 'Earnings payout recorded.');
     }

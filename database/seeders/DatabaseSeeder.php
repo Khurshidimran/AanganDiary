@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             ChartOfAccountsSeeder::class,
             ChannelSeeder::class,
             DummyDataSeeder::class,
+            RiderAccountDemoSeeder::class,
         ]);
     }
 }

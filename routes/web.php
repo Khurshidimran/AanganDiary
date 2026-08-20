@@ -19,6 +19,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseReceiptController;
+use App\Http\Controllers\RiderAccountController;
 use App\Http\Controllers\RiderController;
 use App\Http\Controllers\RiderWalletController;
 use App\Http\Controllers\RoleController;
@@ -98,9 +99,12 @@ Route::middleware('auth')->group(function () {
     Route::get('riders-report', [RiderController::class, 'report'])->name('riders.report');
     Route::post('riders/{rider}/check-in', [RiderController::class, 'checkIn'])->name('riders.check-in');
     Route::post('riders/{rider}/check-out', [RiderController::class, 'checkOut'])->name('riders.check-out');
-    Route::get('riders/{rider}/wallet', [RiderWalletController::class, 'show'])->name('riders.wallet');
-    Route::post('riders/{rider}/wallet/settle-cod', [RiderWalletController::class, 'settleCod'])->name('riders.wallet.settle-cod');
-    Route::post('riders/{rider}/wallet/pay-earnings', [RiderWalletController::class, 'payEarnings'])->name('riders.wallet.pay-earnings');
+    Route::post('riders/{rider}/deactivate', [RiderController::class, 'deactivate'])->name('riders.deactivate');
+    Route::get('riders/{rider}/wallet', [RiderAccountController::class, 'show'])->name('riders.wallet');
+    Route::get('riders/{rider}/wallet/orders/{order}', [RiderAccountController::class, 'showOrderAttempts'])->name('riders.wallet.order-attempts');
+    Route::get('riders/{rider}/wallet/trips/{trip}', [RiderAccountController::class, 'showTrip'])->name('riders.wallet.trip');
+    Route::post('riders/{rider}/wallet/deposit-cash', [RiderWalletController::class, 'recordCashDeposit'])->name('riders.wallet.deposit-cash');
+    Route::post('riders/{rider}/wallet/pay-earnings', [RiderWalletController::class, 'payRider'])->name('riders.wallet.pay-earnings');
     Route::post('riders/{rider}/wallet/adjust', [RiderWalletController::class, 'adjust'])->name('riders.wallet.adjust');
 
     Route::get('dispatch', [DispatchController::class, 'index'])->name('dispatch.index');

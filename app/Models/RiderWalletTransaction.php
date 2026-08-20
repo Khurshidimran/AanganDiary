@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'rider_id', 'transaction_type', 'amount', 'balance_before', 'balance_after',
     'reference_type', 'reference_id', 'recorded_by', 'notes',
+    'payment_method', 'reference_number', 'transaction_date',
 ])]
 class RiderWalletTransaction extends Model
 {
@@ -34,6 +35,7 @@ class RiderWalletTransaction extends Model
             'amount' => 'decimal:2',
             'balance_before' => 'decimal:2',
             'balance_after' => 'decimal:2',
+            'transaction_date' => 'date',
         ];
     }
 

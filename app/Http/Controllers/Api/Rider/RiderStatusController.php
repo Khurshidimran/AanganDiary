@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Rider;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\RiderProfile;
+use App\Services\RiderTripService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,6 +18,10 @@ use Illuminate\Http\Request;
  */
 class RiderStatusController extends Controller
 {
+    public function __construct(private readonly RiderTripService $trips)
+    {
+    }
+
     public function online(Request $request): JsonResponse
     {
         $rider = $request->user()->riderProfile;
@@ -67,6 +72,8 @@ class RiderStatusController extends Controller
             'checked_in_longitude' => $validated['longitude'],
         ]);
 
+        $this->trips->openTrip($rider, $validated['latitude'], $validated['longitude']);
+
         return response()->json([
             'is_checked_in' => true,
             'checked_in_at' => $rider->checked_in_at->toIso8601String(),
@@ -78,6 +85,7 @@ class RiderStatusController extends Controller
     {
         $rider = $request->user()->riderProfile;
         $rider->update(['is_checked_in' => false]);
+        $this->trips->closeTrip($rider);
 
         return response()->json(['is_checked_in' => false]);
     }

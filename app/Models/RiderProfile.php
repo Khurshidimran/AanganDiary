@@ -70,6 +70,16 @@ class RiderProfile extends Model
         return $this->hasMany(RiderLocationPing::class, 'rider_id');
     }
 
+    public function trips(): HasMany
+    {
+        return $this->hasMany(RiderTrip::class, 'rider_id');
+    }
+
+    public function deliveryAttempts(): HasMany
+    {
+        return $this->hasMany(DeliveryAttempt::class, 'rider_id');
+    }
+
     /**
      * Great-circle (haversine) distance in meters from the given point to
      * this rider's assigned warehouse — null if there's no warehouse
@@ -99,5 +109,37 @@ class RiderProfile extends Model
         $distance = $this->distanceToWarehouseMeters($latitude, $longitude);
 
         return $distance !== null && $distance <= self::CHECK_IN_RADIUS_METERS;
+    }
+
+    /**
+     * A single human-facing status label for the Rider Account header —
+     * checked precedence: deactivated riders always show Inactive regardless
+     * of any stale online/checked-in flags; a rider actively holding a
+     * picked-up/out-for-delivery order is "On Delivery" even if their app
+     * hasn't reported online; otherwise checked-in beats plain online.
+     */
+    public function operationalStatusLabel(): string
+    {
+        if ($this->status === self::STATUS_INACTIVE) {
+            return 'Inactive';
+        }
+
+        $onDelivery = $this->orders()
+            ->whereIn('delivery_status', [Order::DELIVERY_STATUS_PICKED_UP, Order::DELIVERY_STATUS_OUT_FOR_DELIVERY])
+            ->exists();
+
+        if ($onDelivery) {
+            return 'On Delivery';
+        }
+
+        if ($this->is_checked_in) {
+            return 'Checked In';
+        }
+
+        if ($this->is_online) {
+            return 'Online';
+        }
+
+        return 'Offline';
     }
 }

@@ -82,6 +82,11 @@ class Order extends Model
      * assignment, delivery outcome) shown on the order's Trail side card —
      * oldest first, so it reads as a chronological story.
      */
+    public function deliveryAttempts(): HasMany
+    {
+        return $this->hasMany(DeliveryAttempt::class)->orderBy('attempt_number');
+    }
+
     public function auditLogs(): MorphMany
     {
         return $this->morphMany(AuditLog::class, 'auditable')->with('user')->oldest();

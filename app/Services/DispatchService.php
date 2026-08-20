@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\InsufficientStockException;
 use App\Exceptions\WarehouseNotConfiguredException;
+use App\Models\DeliveryAttempt;
 use App\Models\Order;
 use App\Models\RiderProfile;
 use App\Models\RiderWalletTransaction;
@@ -23,7 +24,34 @@ class DispatchService
         private readonly OrderFulfillmentService $fulfillment,
         private readonly FcmService $fcm,
         private readonly AccountingPostingService $accounting,
+        private readonly RiderTripService $trips,
     ) {
+    }
+
+    /**
+     * The delivery attempt currently in progress (or most recently
+     * completed) for this order — every DeliveryAttempt row is immutable
+     * once its outcome is set, so "current" just means the highest attempt
+     * number on record.
+     */
+    private function currentAttempt(Order $order): ?DeliveryAttempt
+    {
+        return DeliveryAttempt::where('order_id', $order->id)->latest('attempt_number')->first();
+    }
+
+    /**
+     * Always resolves the rider fresh from rider_id rather than the
+     * `rider` relation — an Order instance reused across a full
+     * assign->return->reassign cycle (a seeder, an Artisan command, any
+     * code that doesn't re-fetch between steps) would otherwise keep
+     * Eloquent's cached relation pointed at whichever rider first lazy
+     * loaded it, silently crediting wallet postings to the wrong rider
+     * after a reassignment. rider_id itself is never stale — update()
+     * always writes it — only the cached relation object can be.
+     */
+    private function currentRider(Order $order): ?RiderProfile
+    {
+        return $order->rider_id ? RiderProfile::find($order->rider_id) : null;
     }
 
     /**
@@ -69,6 +97,15 @@ class DispatchService
 
         $order->update($updates);
 
+        DeliveryAttempt::create([
+            'order_id' => $order->id,
+            'attempt_number' => (DeliveryAttempt::where('order_id', $order->id)->max('attempt_number') ?? 0) + 1,
+            'rider_id' => $rider->id,
+            'status' => Order::DELIVERY_STATUS_ASSIGNED,
+            'assigned_at' => $updates['assigned_at'],
+            'cod_amount' => $updates['cod_amount'],
+        ]);
+
         if ($rider->fcm_token) {
             $this->fcm->sendToToken(
                 token: $rider->fcm_token,
@@ -94,6 +131,15 @@ class DispatchService
             'rider_instructions' => null,
             'cod_amount' => 0,
         ]);
+
+        // The attempt this assignment created never became a real physical
+        // delivery attempt — remove it so attempt numbers only ever count
+        // attempts that actually left the warehouse with a rider.
+        DeliveryAttempt::where('order_id', $order->id)
+            ->where('status', Order::DELIVERY_STATUS_ASSIGNED)
+            ->latest('attempt_number')
+            ->first()
+            ?->delete();
     }
 
     public function updateInstructions(Order $order, ?string $instructions): void
@@ -107,11 +153,22 @@ class DispatchService
             'delivery_status' => Order::DELIVERY_STATUS_PICKED_UP,
             'picked_up_at' => now(),
         ]);
+
+        $this->currentAttempt($order)?->update([
+            'status' => Order::DELIVERY_STATUS_PICKED_UP,
+            'picked_up_at' => now(),
+            'trip_id' => $this->trips->currentOpenTrip($this->currentRider($order))?->id,
+        ]);
     }
 
     public function markOutForDelivery(Order $order): void
     {
         $order->update(['delivery_status' => Order::DELIVERY_STATUS_OUT_FOR_DELIVERY]);
+
+        $this->currentAttempt($order)?->update([
+            'status' => Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+            'out_for_delivery_at' => now(),
+        ]);
     }
 
     /**
@@ -200,7 +257,7 @@ class DispatchService
                 'pod_captured_at' => ($podPhotoPath || $podSignaturePath) ? now() : null,
             ]);
 
-            $rider = $order->rider;
+            $rider = $this->currentRider($order);
 
             if ((float) $order->cod_amount > 0) {
                 $this->wallet->postTransaction(
@@ -214,7 +271,9 @@ class DispatchService
                 $order->update(['cod_collected' => true]);
             }
 
-            if ((float) $rider->per_delivery_rate > 0) {
+            $earningCredited = (float) $rider->per_delivery_rate > 0;
+
+            if ($earningCredited) {
                 $this->wallet->postTransaction(
                     rider: $rider,
                     transactionType: RiderWalletTransaction::TYPE_EARNING_CREDITED,
@@ -226,6 +285,16 @@ class DispatchService
             }
 
             $this->accounting->postCogsEntry($order);
+
+            $this->currentAttempt($order)?->update([
+                'status' => Order::DELIVERY_STATUS_DELIVERED,
+                'delivered_at' => $order->delivered_at,
+                'completed_at' => $order->delivered_at,
+                'cod_amount' => $order->cod_amount,
+                'cod_collected' => $order->cod_collected,
+                'delivery_charge' => $earningCredited ? $rider->per_delivery_rate : null,
+                'earning_credited' => $earningCredited,
+            ]);
         });
     }
 
@@ -234,6 +303,12 @@ class DispatchService
         $order->update([
             'delivery_status' => Order::DELIVERY_STATUS_FAILED,
             'delivery_failure_reason' => $reason,
+        ]);
+
+        $this->currentAttempt($order)?->update([
+            'status' => Order::DELIVERY_STATUS_FAILED,
+            'completed_at' => now(),
+            'failure_reason' => $reason,
         ]);
     }
 
@@ -246,6 +321,11 @@ class DispatchService
         DB::transaction(function () use ($order) {
             $this->fulfillment->releaseStock($order);
             $order->update(['delivery_status' => Order::DELIVERY_STATUS_RETURNED]);
+
+            $this->currentAttempt($order)?->update([
+                'status' => Order::DELIVERY_STATUS_RETURNED,
+                'completed_at' => now(),
+            ]);
         });
     }
 }
