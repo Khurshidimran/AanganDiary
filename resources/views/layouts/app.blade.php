@@ -330,13 +330,15 @@
             </nav>
 
             <div class="p-4">
-                @if (session('status'))
-                    <div class="alert alert-success">{{ session('status') }}</div>
-                @endif
+                <div id="flash-messages">
+                    @if (session('status'))
+                        <div class="alert alert-success">{{ session('status') }}</div>
+                    @endif
 
-                @if (session('error'))
-                    <div class="alert alert-danger">{{ session('error') }}</div>
-                @endif
+                    @if (session('error'))
+                        <div class="alert alert-danger">{{ session('error') }}</div>
+                    @endif
+                </div>
 
                 @yield('content')
             </div>

@@ -69,16 +69,24 @@ class DispatchController extends Controller
         // Only riders who've checked in (location-verified at their warehouse
         // via the mobile app) are eligible for assignment — see
         // Api\Rider\RiderStatusController::checkIn().
-        $riders = RiderProfile::with(['user', 'warehouse', 'orders' => fn ($q) => $q->whereIn('delivery_status', [
-            Order::DELIVERY_STATUS_ASSIGNED,
-            Order::DELIVERY_STATUS_PICKED_UP,
-            Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
-        ])])
+        $riders = RiderProfile::with(['user', 'warehouse'])
             ->where('status', RiderProfile::STATUS_ACTIVE)
             ->where('is_checked_in', true)
             ->get()
             ->sortBy(fn (RiderProfile $r) => $r->user->name)
             ->values();
+
+        // Derived from the already date-filtered $orders above (rather than
+        // a separate query) so "Rider Workload" can never drift out of sync
+        // with the date range applied to the main board — this was the bug:
+        // the old separate eager-load ignored date_from/date_to entirely.
+        $ordersByRider = $orders->whereIn('delivery_status', [
+            Order::DELIVERY_STATUS_ASSIGNED,
+            Order::DELIVERY_STATUS_PICKED_UP,
+            Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+        ])->groupBy('rider_id');
+
+        $riders->each(fn (RiderProfile $rider) => $rider->setRelation('orders', $ordersByRider->get($rider->id, collect())));
 
         $statusCounts = [
             'pending' => $orders->whereIn('delivery_status', [Order::DELIVERY_STATUS_PENDING, Order::DELIVERY_STATUS_FAILED])->count(),

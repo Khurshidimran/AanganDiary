@@ -25,7 +25,7 @@
     </div>
     <hr class="mb-4">
 
-    <div class="card shadow-sm mb-4">
+    <div class="card shadow-sm mb-4" id="status-summary">
         <div class="card-body">
             <div class="text-uppercase text-muted small fw-semibold mb-3" style="letter-spacing: .05em;">Status Summary</div>
             <div class="row g-3 text-center">
@@ -64,14 +64,14 @@
     </div>
 
     @can('dispatch.manage')
-        <form id="bulk-assign-form" method="POST" action="{{ route('dispatch.assign.bulk') }}">
+        <form id="bulk-assign-form" class="js-dispatch-form" method="POST" action="{{ route('dispatch.assign.bulk') }}">
             @csrf
         </form>
     @endcan
 
     <div class="row g-4">
         <div class="col-lg-8">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3" id="orders-heading">
                 <div>
                     <h2 class="h6 mb-0">Orders ({{ $orders->count() }})</h2>
                     @unless ($dateFrom->isToday() && $dateTo->isToday())
@@ -167,7 +167,7 @@
 
                             @can('dispatch.manage')
                                 @if ($order->canBeAssigned() && ! $order->isCancelled())
-                                    <form method="POST" action="{{ route('dispatch.assign', $order) }}">
+                                    <form method="POST" action="{{ route('dispatch.assign', $order) }}" class="js-dispatch-form">
                                         @csrf
                                         <select name="rider_id" class="form-select form-select-sm" required onchange="this.form.requestSubmit()">
                                             <option value="">Assign a rider...</option>
@@ -191,13 +191,13 @@
                                         <div class="d-flex gap-1 align-items-center">
                                             <span class="text-muted small text-uppercase me-1" style="font-size: .7rem;">Update status:</span>
                                             @if ($order->canBeMarkedPickedUp())
-                                                <form method="POST" action="{{ route('dispatch.picked-up', $order) }}">
+                                                <form method="POST" action="{{ route('dispatch.picked-up', $order) }}" class="js-dispatch-form">
                                                     @csrf
                                                     <button type="submit" class="btn btn-sm btn-outline-primary">Picked Up</button>
                                                 </form>
                                             @endif
                                             @if ($order->canBeUnassigned())
-                                                <form method="POST" action="{{ route('dispatch.unassign', $order) }}" onsubmit="return confirm('Unassign this rider? The order goes back to pending.');">
+                                                <form method="POST" action="{{ route('dispatch.unassign', $order) }}" class="js-dispatch-form" data-confirm="Unassign this rider? The order goes back to pending.">
                                                     @csrf
                                                     <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none">Unassign</button>
                                                 </form>
@@ -210,20 +210,20 @@
                                         <div class="d-flex gap-1 flex-wrap justify-content-end align-items-center">
                                             <span class="text-muted small text-uppercase me-1" style="font-size: .7rem;">Update status:</span>
                                             @if ($order->canBeMarkedOutForDelivery())
-                                                <form method="POST" action="{{ route('dispatch.out-for-delivery', $order) }}">
+                                                <form method="POST" action="{{ route('dispatch.out-for-delivery', $order) }}" class="js-dispatch-form">
                                                     @csrf
                                                     <button type="submit" class="btn btn-sm btn-outline-primary">Out for Delivery</button>
                                                 </form>
                                             @endif
                                             @if ($order->canBeMarkedDelivered())
-                                                <form method="POST" action="{{ route('dispatch.delivered', $order) }}">
+                                                <form method="POST" action="{{ route('dispatch.delivered', $order) }}" class="js-dispatch-form">
                                                     @csrf
                                                     <button type="submit" class="btn btn-sm btn-success">Delivered</button>
                                                 </form>
                                             @endif
                                             @if ($order->canBeMarkedFailedOrReturned())
                                                 <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#fail-modal-{{ $order->id }}">Failed</button>
-                                                <form method="POST" action="{{ route('dispatch.returned', $order) }}" onsubmit="return confirm('Mark returned? This releases the allocated stock back.');">
+                                                <form method="POST" action="{{ route('dispatch.returned', $order) }}" class="js-dispatch-form" data-confirm="Mark returned? This releases the allocated stock back.">
                                                     @csrf
                                                     <button type="submit" class="btn btn-sm btn-outline-secondary">Returned</button>
                                                 </form>
@@ -241,7 +241,7 @@
                                 @if ($order->canBeMarkedFailedOrReturned())
                                     <div class="modal fade" id="fail-modal-{{ $order->id }}" tabindex="-1">
                                         <div class="modal-dialog">
-                                            <form method="POST" action="{{ route('dispatch.failed', $order) }}" class="modal-content">
+                                            <form method="POST" action="{{ route('dispatch.failed', $order) }}" class="modal-content js-dispatch-form">
                                                 @csrf
                                                 <div class="modal-header">
                                                     <h5 class="modal-title">Mark Delivery Failed</h5>
@@ -269,7 +269,7 @@
             </div>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-lg-4" id="riders-sidebar">
             @php
                 $available = $riders->filter(fn ($r) => $r->orders->count() === 0)->values();
             @endphp
@@ -298,9 +298,19 @@
                         <li class="list-group-item">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span><span class="{{ $activeCount > 0 ? 'text-primary' : 'text-success' }}">●</span> {{ $rider->user->name }}</span>
-                                <span class="badge {{ $activeCount > 0 ? 'bg-primary-subtle text-primary-emphasis border border-primary-subtle' : 'bg-light text-dark border' }}">
-                                    {{ $activeCount > 0 ? 'On delivery' : 'Available' }}
-                                </span>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="badge {{ $activeCount > 0 ? 'bg-primary-subtle text-primary-emphasis border border-primary-subtle' : 'bg-light text-dark border' }}">
+                                        {{ $activeCount > 0 ? 'On delivery' : 'Available' }}
+                                    </span>
+                                    @can('dispatch.view')
+                                        <a href="{{ route('riders.manifest', $rider) }}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Print delivery manifest (PDF)">
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                        </a>
+                                        <a href="{{ route('riders.manifest.excel', $rider) }}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Download delivery manifest (Excel)">
+                                            <i class="bi bi-file-earmark-excel"></i>
+                                        </a>
+                                    @endcan
+                                </div>
                             </div>
                             <div class="text-muted small mt-1">
                                 <i class="bi bi-bicycle"></i> {{ str($rider->vehicle_type)->headline() }} · {{ $rider->zone ?? '—' }} · {{ $activeCount }} active
@@ -325,55 +335,120 @@
     @push('scripts')
         <script>
             (function () {
-                const buttons = document.querySelectorAll('#status-filter .filter-pill');
-                const cards = document.querySelectorAll('#orders-list .order-card');
+                // Every order action (assign, unassign, picked up, out for
+                // delivery, delivered, failed, returned, bulk-assign) posts
+                // via fetch() and swaps just the fragments that changed —
+                // the page never navigates, so the active status filter
+                // (currentFilter) survives every action instead of resetting
+                // to "All" on each full-page reload.
+                let currentFilter = 'all';
+                const SWAP_IDS = ['status-summary', 'orders-heading', 'orders-list', 'riders-sidebar', 'flash-messages'];
 
                 function applyFilter(filter) {
-                    cards.forEach((card) => {
+                    currentFilter = filter;
+                    document.querySelectorAll('#orders-list .order-card').forEach((card) => {
                         card.style.display = (filter === 'all' || card.dataset.status === filter) ? '' : 'none';
                     });
-                    buttons.forEach((btn) => {
+                    document.querySelectorAll('#status-filter .filter-pill').forEach((btn) => {
                         const isActive = btn.dataset.filter === filter;
                         btn.classList.toggle('btn-dark', isActive);
                         btn.classList.toggle('btn-outline-secondary', !isActive);
                     });
                 }
 
-                buttons.forEach((btn) => btn.addEventListener('click', () => applyFilter(btn.dataset.filter)));
-                applyFilter('all');
-            })();
-
-            (function () {
-                const selectAll = document.getElementById('select-all-pending');
-                const riderSelect = document.getElementById('bulk-rider-select');
-                const assignBtn = document.getElementById('bulk-assign-btn');
-                if (!selectAll || !riderSelect || !assignBtn) {
-                    return;
-                }
-
-                function checkboxes() {
-                    return document.querySelectorAll('.bulk-select-checkbox');
-                }
-
                 function updateBulkUI() {
+                    const selectAll = document.getElementById('select-all-pending');
+                    const riderSelect = document.getElementById('bulk-rider-select');
+                    const assignBtn = document.getElementById('bulk-assign-btn');
+                    if (!selectAll || !riderSelect || !assignBtn) {
+                        return;
+                    }
+                    const checkboxes = document.querySelectorAll('.bulk-select-checkbox');
                     const checked = document.querySelectorAll('.bulk-select-checkbox:checked').length;
                     document.getElementById('selected-count').textContent = checked + ' selected';
                     assignBtn.disabled = checked === 0 || !riderSelect.value;
-                    selectAll.checked = checked > 0 && checked === checkboxes().length;
+                    selectAll.checked = checked > 0 && checked === checkboxes.length;
                 }
 
-                selectAll.addEventListener('change', function () {
-                    checkboxes().forEach((cb) => { cb.checked = this.checked; });
+                function swapFragmentsFrom(html) {
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    SWAP_IDS.forEach((id) => {
+                        const fresh = doc.getElementById(id);
+                        const current = document.getElementById(id);
+                        if (fresh && current) {
+                            current.outerHTML = fresh.outerHTML;
+                        }
+                    });
+                    applyFilter(currentFilter);
                     updateBulkUI();
+                }
+
+                async function submitAjax(form) {
+                    const formData = new FormData(form);
+                    let response;
+
+                    try {
+                        response = await fetch(form.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {'X-Requested-With': 'XMLHttpRequest'},
+                            credentials: 'same-origin',
+                        });
+                    } catch (err) {
+                        alert('Network error — please check your connection and try again.');
+                        return;
+                    }
+
+                    if (!response.ok) {
+                        alert('Something went wrong processing that action. The page will now reload.');
+                        window.location.reload();
+                        return;
+                    }
+
+                    swapFragmentsFrom(await response.text());
+                }
+
+                document.addEventListener('submit', function (e) {
+                    if (!e.target.matches('.js-dispatch-form')) {
+                        return;
+                    }
+
+                    e.preventDefault();
+
+                    const confirmMessage = e.target.dataset.confirm;
+                    if (confirmMessage && ! confirm(confirmMessage)) {
+                        return;
+                    }
+
+                    const modal = e.target.closest('.modal');
+                    if (modal && window.bootstrap) {
+                        window.bootstrap.Modal.getInstance(modal)?.hide();
+                    }
+
+                    submitAjax(e.target);
                 });
 
-                riderSelect.addEventListener('change', updateBulkUI);
-                document.getElementById('orders-list').addEventListener('change', function (e) {
-                    if (e.target.classList.contains('bulk-select-checkbox')) {
+                document.addEventListener('click', function (e) {
+                    const pill = e.target.closest('#status-filter .filter-pill');
+                    if (pill) {
+                        applyFilter(pill.dataset.filter);
+                    }
+                });
+
+                document.addEventListener('change', function (e) {
+                    if (e.target.id === 'select-all-pending') {
+                        document.querySelectorAll('.bulk-select-checkbox').forEach((cb) => { cb.checked = e.target.checked; });
+                        updateBulkUI();
+
+                        return;
+                    }
+
+                    if (e.target.classList.contains('bulk-select-checkbox') || e.target.id === 'bulk-rider-select') {
                         updateBulkUI();
                     }
                 });
 
+                applyFilter('all');
                 updateBulkUI();
             })();
         </script>
