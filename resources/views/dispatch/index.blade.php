@@ -147,7 +147,7 @@
                             <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                                 <div class="fw-semibold d-flex align-items-center gap-2">
                                     @can('dispatch.manage')
-                                        @if (in_array($order->delivery_status, ['pending', 'failed']) && $order->canBeAssigned() && ! $order->isCancelled())
+                                        @if (in_array($order->delivery_status, ['pending', 'failed', 'returned']) && $order->canBeAssigned() && ! $order->isCancelled())
                                             <input type="checkbox" form="bulk-assign-form" name="order_ids[]" value="{{ $order->id }}" class="form-check-input bulk-select-checkbox mt-0">
                                         @endif
                                     @endcan
@@ -176,6 +176,9 @@
                             @if ($order->delivery_status === 'failed' && $order->delivery_failure_reason)
                                 <div class="alert alert-danger py-1 px-2 small mb-2">Failed attempt: {{ $order->delivery_failure_reason }}</div>
                             @endif
+                            @if ($order->delivery_status === 'returned')
+                                <div class="alert alert-warning py-1 px-2 small mb-2">Returned by {{ $order->rider?->user->name ?? 'rider' }} — stock released back to inventory. Reassigning will re-allocate it.</div>
+                            @endif
 
                             @can('dispatch.manage')
                                 @unless (in_array($order->delivery_status, ['delivered', 'returned']) || $order->isCancelled())
@@ -197,14 +200,14 @@
                             @endcan
 
                             @can('dispatch.manage')
-                                @if (in_array($order->delivery_status, ['pending', 'failed']) && $order->canBeAssigned() && ! $order->isCancelled())
-                                    @if ($order->delivery_status === 'failed')
+                                @if (in_array($order->delivery_status, ['pending', 'failed', 'returned']) && $order->canBeAssigned() && ! $order->isCancelled())
+                                    @if (in_array($order->delivery_status, ['failed', 'returned']))
                                         <div class="text-muted small text-uppercase mb-1" style="font-size: .7rem;">Relocate — reassign rider:</div>
                                     @endif
                                     <form method="POST" action="{{ route('dispatch.assign', $order) }}" class="js-dispatch-form">
                                         @csrf
                                         <select name="rider_id" class="form-select form-select-sm" required onchange="this.form.requestSubmit()">
-                                            <option value="">{{ $order->delivery_status === 'failed' ? 'Reassign a rider...' : 'Assign a rider...' }}</option>
+                                            <option value="">{{ in_array($order->delivery_status, ['failed', 'returned']) ? 'Reassign a rider...' : 'Assign a rider...' }}</option>
                                             @foreach ($riders as $rider)
                                                 <option value="{{ $rider->id }}" @selected($order->rider_id === $rider->id)>
                                                     {{ $rider->user->name }} ({{ $rider->zone ?? 'no zone' }})

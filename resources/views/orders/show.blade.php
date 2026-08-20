@@ -38,6 +38,9 @@
         </div>
     </div>
 
+    <div class="row g-3">
+    <div class="col-lg-8">
+
     @if ($order->rider_id || $order->canBeAssigned())
         <div class="card shadow-sm mb-3">
             <div class="card-header bg-white fw-semibold">Delivery</div>
@@ -198,5 +201,30 @@
                 </tfoot>
             </table>
         </div>
+    </div>
+
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm" style="position: sticky; top: 1rem;">
+            <div class="card-header bg-white fw-semibold">Order Trail</div>
+            <div class="card-body" style="max-height: 75vh; overflow-y: auto;">
+                <ul class="list-unstyled mb-0">
+                    @forelse ($order->auditLogs as $log)
+                        <li class="d-flex gap-2 {{ $loop->last ? '' : 'pb-3' }}">
+                            <div class="text-primary pt-1"><i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i></div>
+                            <div class="flex-grow-1">
+                                <div class="small">{{ $log->describe() }}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">
+                                    {{ $log->created_at->format('M d, Y H:i') }} &middot; {{ $log->user?->name ?? 'System' }}
+                                </div>
+                            </div>
+                        </li>
+                    @empty
+                        <li class="text-muted small">No activity recorded yet.</li>
+                    @endforelse
+                </ul>
+            </div>
+        </div>
+    </div>
     </div>
 @endsection

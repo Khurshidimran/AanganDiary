@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\ShopifySyncLog;
 use App\Models\User;
+use App\Services\AuditLogService;
 use App\Services\OrderFulfillmentService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,7 @@ class ShopifyOrderSyncService
     public function __construct(
         private readonly ShopifyClient $client,
         private readonly OrderFulfillmentService $fulfillment,
+        private readonly AuditLogService $auditLog,
     ) {
     }
 
@@ -61,6 +63,7 @@ class ShopifyOrderSyncService
         $order = DB::transaction(function () use ($payload, &$isNew) {
             $order = Order::withTrashed()->firstOrNew(['shopify_order_id' => (string) $payload['id']]);
             $isNew = ! $order->exists;
+            $wasCancelled = $order->getOriginal('order_status') === Order::ORDER_STATUS_CANCELLED;
 
             $order->fill([
                 'shopify_order_number' => $payload['name'] ?? ($payload['order_number'] ?? null),
@@ -99,6 +102,12 @@ class ShopifyOrderSyncService
             }
 
             $order->save();
+
+            if ($isNew) {
+                $this->auditLog->log('created', 'orders', $order, null, ['shopify_order_number' => $order->shopify_order_number, 'source' => 'shopify']);
+            } elseif ($order->order_status === Order::ORDER_STATUS_CANCELLED && ! $wasCancelled) {
+                $this->auditLog->log('cancelled', 'orders', $order, null, ['order_status' => $order->order_status, 'source' => 'shopify']);
+            }
 
             $order->items()->delete();
 
@@ -161,6 +170,7 @@ class ShopifyOrderSyncService
         }
 
         $order->update(['order_status' => Order::ORDER_STATUS_CONFIRMED]);
+        $this->auditLog->log('confirmed', 'orders', $order, null, ['order_status' => $order->order_status, 'source' => 'shopify']);
     }
 
     /**

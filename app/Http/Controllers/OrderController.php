@@ -204,7 +204,7 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load('items.productVariant.unit', 'channel');
+        $order->load('items.productVariant.unit', 'channel', 'auditLogs');
 
         return view('orders.show', compact('order'));
     }

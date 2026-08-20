@@ -44,26 +44,34 @@ class OrderFulfillmentService
     }
 
     /**
-     * Reverses whatever was actually posted at allocation time — replaying the
-     * ledger rather than recomputing bundle expansion/batch selection again, so
-     * a release is always exactly correct regardless of how allocation split
-     * quantity across batches.
+     * Reverses whatever's still actually outstanding from allocation — not by
+     * replaying every allocation transaction ever posted (an order can be
+     * allocated, released on return, then reassigned and allocated again for
+     * another attempt, possibly more than once), but by netting allocations
+     * against prior releases per variant/warehouse/batch and reversing only
+     * what's still open. This is deliberately not "reverse allocations after
+     * the last release timestamp" — successive actions can land in the same
+     * second at MySQL's datetime precision, which would make that boundary
+     * unreliable.
      */
     public function releaseStock(Order $order): void
     {
         DB::transaction(function () use ($order) {
-            $allocations = InventoryTransaction::where('reference_type', 'orders')
+            $openAllocations = InventoryTransaction::where('reference_type', 'orders')
                 ->where('reference_id', $order->id)
-                ->where('transaction_type', InventoryTransaction::TYPE_ORDER_ALLOCATION)
+                ->whereIn('transaction_type', [InventoryTransaction::TYPE_ORDER_ALLOCATION, InventoryTransaction::TYPE_ORDER_RELEASE])
+                ->selectRaw('product_variant_id, warehouse_id, batch_number, SUM(quantity) as net_quantity')
+                ->groupBy('product_variant_id', 'warehouse_id', 'batch_number')
+                ->havingRaw('SUM(quantity) < 0')
                 ->get();
 
-            foreach ($allocations as $allocation) {
+            foreach ($openAllocations as $row) {
                 $this->inventory->postTransaction(
-                    variant: $allocation->productVariant,
-                    warehouse: $allocation->warehouse,
+                    variant: ProductVariant::findOrFail($row->product_variant_id),
+                    warehouse: Warehouse::findOrFail($row->warehouse_id),
                     transactionType: InventoryTransaction::TYPE_ORDER_RELEASE,
-                    quantity: -$allocation->quantity,
-                    batchNumber: $allocation->batch_number ?: null,
+                    quantity: -$row->net_quantity,
+                    batchNumber: $row->batch_number ?: null,
                     referenceType: 'orders',
                     referenceId: $order->id,
                     notes: "Order #{$order->shopify_order_number} cancelled",

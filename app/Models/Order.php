@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -77,6 +78,16 @@ class Order extends Model
     }
 
     /**
+     * The A-Z activity trail (created, every status change, rider
+     * assignment, delivery outcome) shown on the order's Trail side card —
+     * oldest first, so it reads as a chronological story.
+     */
+    public function auditLogs(): MorphMany
+    {
+        return $this->morphMany(AuditLog::class, 'auditable')->with('user')->oldest();
+    }
+
+    /**
      * Manually-entered orders (phone/WhatsApp/etc.) get a synthetic
      * shopify_order_id (that column is NOT NULL + UNIQUE with no default) —
      * this is how the rest of the app tells the two apart, e.g. to skip
@@ -132,13 +143,15 @@ class Order extends Model
 
     public function canBeAssigned(): bool
     {
-        // FAILED is included so a dispatcher can reassign a failed delivery
-        // back into the pipeline — failed is a retry point, not a dead end.
+        // FAILED and RETURNED are both included so a dispatcher can put a
+        // failed or returned delivery back into the pipeline with a
+        // different rider — neither is a dead end.
         return $this->order_status === self::ORDER_STATUS_CONFIRMED
             && in_array($this->delivery_status, [
                 self::DELIVERY_STATUS_PENDING,
                 self::DELIVERY_STATUS_ASSIGNED,
                 self::DELIVERY_STATUS_FAILED,
+                self::DELIVERY_STATUS_RETURNED,
             ], true);
     }
 

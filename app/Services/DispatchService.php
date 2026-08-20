@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Exceptions\InsufficientStockException;
+use App\Exceptions\WarehouseNotConfiguredException;
 use App\Models\Order;
 use App\Models\RiderProfile;
 use App\Models\RiderWalletTransaction;
@@ -24,12 +26,26 @@ class DispatchService
     ) {
     }
 
+    /**
+     * @throws InsufficientStockException|WarehouseNotConfiguredException
+     */
     public function assign(
         Order $order,
         RiderProfile $rider,
         ?string $riderInstructions = null,
         ?\DateTimeInterface $scheduledDispatchAt = null,
     ): void {
+        // A returned order already had its stock released back to the
+        // warehouse (see markReturned below) — putting it back out for
+        // another delivery attempt needs a fresh allocation, the same as
+        // the original confirm() did, or the warehouse balance would
+        // silently overstate what's actually on hand. Lets the caller
+        // catch a shortage rather than reassigning a rider to an order that
+        // can no longer be fulfilled.
+        if ($order->delivery_status === Order::DELIVERY_STATUS_RETURNED) {
+            $this->fulfillment->allocateStock($order);
+        }
+
         $updates = [
             'rider_id' => $rider->id,
             'assigned_at' => now(),
@@ -159,7 +175,14 @@ class DispatchService
                 continue;
             }
 
-            $apply($order);
+            try {
+                $apply($order);
+            } catch (InsufficientStockException|WarehouseNotConfiguredException $e) {
+                $skipped[] = ['order' => $order, 'reason' => $e->getMessage()];
+
+                continue;
+            }
+
             $succeeded[] = $order;
         }
 
