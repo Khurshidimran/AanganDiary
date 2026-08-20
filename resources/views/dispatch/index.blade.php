@@ -3,9 +3,25 @@
 @section('title', 'Dispatch Board')
 
 @section('content')
-    <div class="mb-3">
-        <h1 class="h4 mb-1">Dispatch Board</h1>
-        <p class="text-muted small mb-0">Internal tool — track order status, rider load, and assign pending orders.</p>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+            <h1 class="h4 mb-1">Dispatch Board</h1>
+            <p class="text-muted small mb-0">Internal tool — track order status, rider load, and assign pending orders.</p>
+        </div>
+        <form method="GET" action="{{ route('dispatch.index') }}" class="d-flex align-items-end gap-2">
+            <div>
+                <label class="form-label small mb-0">From</label>
+                <input type="date" name="date_from" value="{{ $dateFrom->toDateString() }}" class="form-control form-control-sm">
+            </div>
+            <div>
+                <label class="form-label small mb-0">To</label>
+                <input type="date" name="date_to" value="{{ $dateTo->toDateString() }}" class="form-control form-control-sm">
+            </div>
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+            @unless ($dateFrom->isToday() && $dateTo->isToday())
+                <a href="{{ route('dispatch.index') }}" class="btn btn-sm btn-link">Today</a>
+            @endunless
+        </form>
     </div>
     <hr class="mb-4">
 
@@ -56,7 +72,14 @@
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                <h2 class="h6 mb-0">Orders ({{ $orders->count() }})</h2>
+                <div>
+                    <h2 class="h6 mb-0">Orders ({{ $orders->count() }})</h2>
+                    @unless ($dateFrom->isToday() && $dateTo->isToday())
+                        <div class="text-muted small">
+                            {{ $dateFrom->isSameDay($dateTo) ? $dateFrom->format('M j, Y') : $dateFrom->format('M j, Y').' – '.$dateTo->format('M j, Y') }}
+                        </div>
+                    @endunless
+                </div>
                 <div class="d-flex gap-1 flex-wrap" id="status-filter">
                     <button type="button" class="btn btn-sm btn-dark filter-pill" data-filter="all">All</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary filter-pill" data-filter="pending">Pending</button>

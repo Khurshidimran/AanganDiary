@@ -10,13 +10,18 @@ return new class extends Migration
     {
         Schema::create('journal_entries', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('entry_number')->unique();
+            $table->string('entry_number', 30)->unique();
             $table->date('entry_date');
             $table->string('type', 20);
             $table->string('source', 20)->default('manual');
             $table->string('status', 20)->default('posted');
-            $table->string('reference_type')->nullable();
-            $table->string('reference_id')->nullable();
+            // Explicitly short (rather than the default 255) — a composite
+            // index across two default-length string columns exceeds the
+            // key-length limit on some MySQL hosts (seen in production:
+            // "max key length is 1000 bytes", likely an older row format /
+            // storage engine default there vs. local dev).
+            $table->string('reference_type', 40)->nullable();
+            $table->string('reference_id', 40)->nullable();
             $table->text('narration')->nullable();
             $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignUuid('voided_journal_entry_id')->nullable()->constrained('journal_entries')->nullOnDelete();

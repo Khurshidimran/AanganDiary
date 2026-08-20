@@ -21,14 +21,17 @@ class DispatchController extends Controller
     ) {
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('dispatch.view');
 
-        // The board is a live ops view, not full history — active orders
-        // (any stage still needing dispatcher attention) plus today's
-        // deliveries, so a completed order doesn't linger here forever.
+        // Defaults to today, matching the board's original "live ops view"
+        // behavior — widen the range (or clear it) to review other days.
+        $dateFrom = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : today()->startOfDay();
+        $dateTo = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : today()->endOfDay();
+
         $orders = Order::with(['items', 'rider.user', 'rider.warehouse'])
+            ->whereBetween('shopify_created_at', [$dateFrom, $dateTo])
             ->where(function ($query) {
                 $query
                     // "Pending" only means something a dispatcher can act on
@@ -43,9 +46,8 @@ class DispatchController extends Controller
                         Order::DELIVERY_STATUS_ASSIGNED,
                         Order::DELIVERY_STATUS_PICKED_UP,
                         Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
-                    ])
-                    ->orWhere(fn ($q) => $q->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)
-                        ->whereDate('delivered_at', today()));
+                        Order::DELIVERY_STATUS_DELIVERED,
+                    ]);
             })
             // A cancelled order that never got past "pending" is just noise
             // here, but one already out with a rider (assigned/picked_up/
@@ -89,7 +91,7 @@ class DispatchController extends Controller
         $defaultWarehouseId = app(SettingsService::class)->group('inventory')->get('default_warehouse_id');
         $defaultWarehouse = $defaultWarehouseId ? Warehouse::find($defaultWarehouseId) : null;
 
-        return view('dispatch.index', compact('orders', 'riders', 'statusCounts', 'defaultWarehouse'));
+        return view('dispatch.index', compact('orders', 'riders', 'statusCounts', 'defaultWarehouse', 'dateFrom', 'dateTo'));
     }
 
     public function unassign(Order $order): RedirectResponse
