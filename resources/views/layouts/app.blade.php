@@ -163,6 +163,104 @@
                     @endcan
                 @endcanany
 
+                @canany(['employees.view', 'payroll.view', 'employee_advances.view'])
+                    <li class="nav-section-title">HRM</li>
+                    @can('employees.view')
+                        <li class="nav-item">
+                            <a href="{{ route('employees.index') }}" class="nav-link {{ request()->routeIs('employees.*') ? 'active' : '' }}">
+                                <i class="bi bi-person-badge me-2"></i> Employees
+                            </a>
+                        </li>
+                    @endcan
+                    @can('employee_advances.view')
+                        <li class="nav-item">
+                            <a href="{{ route('advances.index') }}" class="nav-link {{ request()->routeIs('advances.*') ? 'active' : '' }}">
+                                <i class="bi bi-wallet2 me-2"></i> Advances
+                            </a>
+                        </li>
+                    @endcan
+                    @can('payroll.view')
+                        <li class="nav-item">
+                            <a href="{{ route('payroll.index') }}" class="nav-link {{ request()->routeIs('payroll.index') || request()->routeIs('payroll.create') || request()->routeIs('payroll.show') ? 'active' : '' }}">
+                                <i class="bi bi-cash-stack me-2"></i> Payroll
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('payroll.adjustments.index') }}" class="nav-link {{ request()->routeIs('payroll.adjustments.index') ? 'active' : '' }}">
+                                <i class="bi bi-clock-history me-2"></i> Deductions History
+                            </a>
+                        </li>
+                    @endcan
+                @endcanany
+
+                @canany(['expenses.view', 'expense_categories.view'])
+                    <li class="nav-section-title">Expenses</li>
+                    @can('expenses.view')
+                        <li class="nav-item">
+                            <a href="{{ route('expenses.index') }}" class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}">
+                                <i class="bi bi-receipt me-2"></i> Expenses
+                            </a>
+                        </li>
+                    @endcan
+                    @can('expense_categories.view')
+                        <li class="nav-item">
+                            <a href="{{ route('expense-categories.index') }}" class="nav-link {{ request()->routeIs('expense-categories.*') ? 'active' : '' }}">
+                                <i class="bi bi-tags me-2"></i> Expense Categories
+                            </a>
+                        </li>
+                    @endcan
+                @endcanany
+
+                @canany(['accounting.manage', 'journal_entries.view', 'reports.financial.view'])
+                    <li class="nav-section-title">Accounting</li>
+                    @can('accounting.manage')
+                        <li class="nav-item">
+                            <a href="{{ route('accounts.index') }}" class="nav-link {{ request()->routeIs('accounts.*') ? 'active' : '' }}">
+                                <i class="bi bi-diagram-2 me-2"></i> Chart of Accounts
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('accounting.mapping.edit') }}" class="nav-link {{ request()->routeIs('accounting.mapping.*') ? 'active' : '' }}">
+                                <i class="bi bi-signpost-2 me-2"></i> Account Mapping
+                            </a>
+                        </li>
+                    @endcan
+                    @can('journal_entries.view')
+                        <li class="nav-item">
+                            <a href="{{ route('journal-entries.index') }}" class="nav-link {{ request()->routeIs('journal-entries.*') || request()->routeIs('vouchers.*') ? 'active' : '' }}">
+                                <i class="bi bi-journal-text me-2"></i> Journal Entries
+                            </a>
+                        </li>
+                    @endcan
+                    @can('reports.financial.view')
+                        <li class="nav-item">
+                            <a href="{{ route('reports.ledger') }}" class="nav-link {{ request()->routeIs('reports.ledger') ? 'active' : '' }}">
+                                <i class="bi bi-list-columns-reverse me-2"></i> Ledger
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('reports.trial-balance') }}" class="nav-link {{ request()->routeIs('reports.trial-balance') ? 'active' : '' }}">
+                                <i class="bi bi-calculator me-2"></i> Trial Balance
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('reports.profit-and-loss') }}" class="nav-link {{ request()->routeIs('reports.profit-and-loss') ? 'active' : '' }}">
+                                <i class="bi bi-graph-up-arrow me-2"></i> Profit &amp; Loss
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('reports.receivables-aging') }}" class="nav-link {{ request()->routeIs('reports.receivables-aging') ? 'active' : '' }}">
+                                <i class="bi bi-hourglass-split me-2"></i> Receivables Aging
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('reports.payables-aging') }}" class="nav-link {{ request()->routeIs('reports.payables-aging') ? 'active' : '' }}">
+                                <i class="bi bi-hourglass-bottom me-2"></i> Payables Aging
+                            </a>
+                        </li>
+                    @endcan
+                @endcanany
+
                 @can('shopify.view')
                     <li class="nav-section-title">Integrations</li>
                     <li class="nav-item">

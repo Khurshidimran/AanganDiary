@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             AdminUserSeeder::class,
             UnitSeeder::class,
+            ExpenseCategorySeeder::class,
+            ChartOfAccountsSeeder::class,
             DummyDataSeeder::class,
         ]);
     }

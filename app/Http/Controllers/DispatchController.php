@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\RiderProfile;
+use App\Models\Warehouse;
 use App\Services\AuditLogService;
 use App\Services\DispatchService;
+use App\Services\SettingsService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,26 +25,87 @@ class DispatchController extends Controller
     {
         $this->authorize('dispatch.view');
 
-        $awaiting = Order::where('order_status', Order::ORDER_STATUS_CONFIRMED)
-            ->whereNull('rider_id')
-            ->latest('shopify_created_at')
+        // The board is a live ops view, not full history — active orders
+        // (any stage still needing dispatcher attention) plus today's
+        // deliveries, so a completed order doesn't linger here forever.
+        $orders = Order::with(['items', 'rider.user', 'rider.warehouse'])
+            ->where(function ($query) {
+                $query
+                    // "Pending" only means something a dispatcher can act on
+                    // if it's actually confirmed — an order Shopify sent over
+                    // that staff hasn't reviewed yet doesn't belong here (and
+                    // canBeAssigned() would refuse it anyway, leaving the
+                    // card with no controls at all).
+                    ->where(fn ($q) => $q->where('order_status', Order::ORDER_STATUS_CONFIRMED)
+                        ->where('delivery_status', Order::DELIVERY_STATUS_PENDING))
+                    ->orWhereIn('delivery_status', [
+                        Order::DELIVERY_STATUS_FAILED,
+                        Order::DELIVERY_STATUS_ASSIGNED,
+                        Order::DELIVERY_STATUS_PICKED_UP,
+                        Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+                    ])
+                    ->orWhere(fn ($q) => $q->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)
+                        ->whereDate('delivered_at', today()));
+            })
+            // A cancelled order that never got past "pending" is just noise
+            // here, but one already out with a rider (assigned/picked_up/
+            // out_for_delivery) still needs to show — staff must know to
+            // pull it back, mirroring the isCancelled() guards on the
+            // per-order action buttons below.
+            ->where(function ($query) {
+                $query->where('order_status', '!=', Order::ORDER_STATUS_CANCELLED)
+                    ->orWhereIn('delivery_status', [
+                        Order::DELIVERY_STATUS_ASSIGNED,
+                        Order::DELIVERY_STATUS_PICKED_UP,
+                        Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+                    ]);
+            })
+            ->orderByRaw("FIELD(delivery_status, 'pending','failed','assigned','picked_up','out_for_delivery','delivered')")
+            ->orderBy('shopify_created_at')
             ->get();
-
-        $inProgress = Order::whereIn('delivery_status', [
-            Order::DELIVERY_STATUS_ASSIGNED,
-            Order::DELIVERY_STATUS_PICKED_UP,
-            Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
-        ])->with('rider.user')->orderBy('assigned_at')->get();
 
         // Only riders who've checked in (location-verified at their warehouse
         // via the mobile app) are eligible for assignment — see
         // Api\Rider\RiderStatusController::checkIn().
-        $riders = RiderProfile::with('user')
+        $riders = RiderProfile::with(['user', 'warehouse', 'orders' => fn ($q) => $q->whereIn('delivery_status', [
+            Order::DELIVERY_STATUS_ASSIGNED,
+            Order::DELIVERY_STATUS_PICKED_UP,
+            Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+        ])])
             ->where('status', RiderProfile::STATUS_ACTIVE)
             ->where('is_checked_in', true)
-            ->get();
+            ->get()
+            ->sortBy(fn (RiderProfile $r) => $r->user->name)
+            ->values();
 
-        return view('dispatch.index', compact('awaiting', 'inProgress', 'riders'));
+        $statusCounts = [
+            'pending' => $orders->whereIn('delivery_status', [Order::DELIVERY_STATUS_PENDING, Order::DELIVERY_STATUS_FAILED])->count(),
+            'assigned' => $orders->where('delivery_status', Order::DELIVERY_STATUS_ASSIGNED)->count(),
+            'picked_up' => $orders->where('delivery_status', Order::DELIVERY_STATUS_PICKED_UP)->count(),
+            'out_for_delivery' => $orders->where('delivery_status', Order::DELIVERY_STATUS_OUT_FOR_DELIVERY)->count(),
+            'delivered' => $orders->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)->count(),
+        ];
+
+        $defaultWarehouseId = app(SettingsService::class)->group('inventory')->get('default_warehouse_id');
+        $defaultWarehouse = $defaultWarehouseId ? Warehouse::find($defaultWarehouseId) : null;
+
+        return view('dispatch.index', compact('orders', 'riders', 'statusCounts', 'defaultWarehouse'));
+    }
+
+    public function unassign(Order $order): RedirectResponse
+    {
+        $this->authorize('dispatch.manage');
+
+        if (! $order->canBeUnassigned()) {
+            return back()->with('error', 'This order cannot be unassigned right now.');
+        }
+
+        $riderName = $order->rider?->user->name;
+
+        $this->dispatch->unassign($order);
+        $this->auditLog->log('unassigned', 'orders', $order, ['rider' => $riderName], null);
+
+        return back()->with('status', 'Rider unassigned — order is pending again.');
     }
 
     public function assign(Request $request, Order $order): RedirectResponse
@@ -105,6 +168,27 @@ class DispatchController extends Controller
         $this->auditLog->log('out_for_delivery', 'orders', $order, null, ['delivery_status' => $order->delivery_status]);
 
         return back()->with('status', 'Order marked as out for delivery.');
+    }
+
+    public function bulkAssign(Request $request): RedirectResponse
+    {
+        $this->authorize('dispatch.manage');
+
+        $validated = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['exists:orders,id'],
+            'rider_id' => ['required', 'exists:rider_profiles,id'],
+        ]);
+
+        $rider = RiderProfile::findOrFail($validated['rider_id']);
+        $orders = Order::whereIn('id', $validated['order_ids'])->get();
+        $result = $this->dispatch->markManyAssigned($orders, $rider);
+
+        foreach ($result['succeeded'] as $order) {
+            $this->auditLog->log('assigned', 'orders', $order, null, ['rider_id' => $rider->id]);
+        }
+
+        return back()->with($this->bulkFlash($result, "assigned to {$rider->user->name}"));
     }
 
     public function bulkPickedUp(Request $request): RedirectResponse

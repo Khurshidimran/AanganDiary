@@ -133,6 +133,33 @@ class OrderFulfillmentService
     }
 
     /**
+     * Standard-cost COGS for an order — sums each track_inventory component
+     * variant's current purchase_price * quantity, expanding bundles the
+     * same way allocateStock() does. This app has no per-batch actual-cost
+     * tracking (allocation only picks batches FEFO by expiry, not cost), so
+     * standard costing off ProductVariant::purchase_price is the honest
+     * ceiling here, not true FIFO/actual cost.
+     */
+    public function costOfGoodsSold(Order $order): float
+    {
+        $order->loadMissing('items.productVariant.product.bundleItems.componentVariant.product');
+
+        $total = 0.0;
+
+        foreach ($order->items as $item) {
+            foreach ($this->expandToComponents($item) as [$variant, $quantity]) {
+                if (! $variant->product->track_inventory) {
+                    continue;
+                }
+
+                $total += (float) $variant->purchase_price * $quantity;
+            }
+        }
+
+        return $total;
+    }
+
+    /**
      * @return list<array{0: ProductVariant, 1: float}>
      */
     private function expandToComponents(OrderItem $item): array

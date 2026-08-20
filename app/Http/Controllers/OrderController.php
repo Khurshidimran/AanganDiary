@@ -6,6 +6,7 @@ use App\Exceptions\InsufficientStockException;
 use App\Exceptions\WarehouseNotConfiguredException;
 use App\Exports\OrdersExport;
 use App\Models\Order;
+use App\Services\AccountingPostingService;
 use App\Services\AuditLogService;
 use App\Services\OrderFulfillmentService;
 use App\Services\Shopify\ShopifyOrderSyncService;
@@ -27,6 +28,7 @@ class OrderController extends Controller
         private readonly AuditLogService $auditLog,
         private readonly OrderFulfillmentService $fulfillment,
         private readonly ShopifyOrderSyncService $shopifySync,
+        private readonly AccountingPostingService $accounting,
     ) {
     }
 
@@ -159,9 +161,12 @@ class OrderController extends Controller
 
         $this->auditLog->log('confirmed', 'orders', $order, null, ['order_status' => $order->order_status]);
 
-        return back()->with('status', $stockError
+        $salesEntry = $this->accounting->postSalesEntry($order);
+        $accountingNote = $salesEntry ? '' : ' Accounting entry was not posted — finish Account Mapping setup.';
+
+        return back()->with('status', ($stockError
             ? "Order confirmed. Stock was not allocated: {$stockError}"
-            : 'Order confirmed and stock allocated.');
+            : 'Order confirmed and stock allocated.').$accountingNote);
     }
 
     public function cancel(Order $order): RedirectResponse
@@ -190,6 +195,10 @@ class OrderController extends Controller
             });
         } catch (WarehouseNotConfiguredException $e) {
             return back()->with('error', "Cannot cancel order: {$e->getMessage()}");
+        }
+
+        if ($wasConfirmed) {
+            $this->accounting->voidSalesEntry($order, 'Order cancelled');
         }
 
         $this->auditLog->log('cancelled', 'orders', $order, null, ['order_status' => $order->order_status]);

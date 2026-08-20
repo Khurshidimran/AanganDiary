@@ -1,10 +1,19 @@
 <?php
 
+use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AccountingReportController;
+use App\Http\Controllers\AccountMappingController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DispatchController;
+use App\Http\Controllers\EmployeeAdvanceController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ExpenseCategoryController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\MonitoringController;
+use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -22,6 +31,7 @@ use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorPaymentController;
+use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
@@ -92,6 +102,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('dispatch', [DispatchController::class, 'index'])->name('dispatch.index');
     Route::post('dispatch/{order}/assign', [DispatchController::class, 'assign'])->name('dispatch.assign');
+    Route::post('dispatch/{order}/unassign', [DispatchController::class, 'unassign'])->name('dispatch.unassign');
+    Route::post('dispatch/assign/bulk', [DispatchController::class, 'bulkAssign'])->name('dispatch.assign.bulk');
     Route::post('dispatch/{order}/picked-up', [DispatchController::class, 'pickedUp'])->name('dispatch.picked-up');
     Route::post('dispatch/{order}/out-for-delivery', [DispatchController::class, 'outForDelivery'])->name('dispatch.out-for-delivery');
     Route::post('dispatch/picked-up/bulk', [DispatchController::class, 'bulkPickedUp'])->name('dispatch.picked-up.bulk');
@@ -99,6 +111,45 @@ Route::middleware('auth')->group(function () {
     Route::post('dispatch/{order}/delivered', [DispatchController::class, 'delivered'])->name('dispatch.delivered');
     Route::post('dispatch/{order}/failed', [DispatchController::class, 'failed'])->name('dispatch.failed');
     Route::post('dispatch/{order}/returned', [DispatchController::class, 'returned'])->name('dispatch.returned');
+
+    Route::resource('employees', EmployeeController::class);
+
+    Route::get('advances', [EmployeeAdvanceController::class, 'index'])->name('advances.index');
+    Route::post('advances', [EmployeeAdvanceController::class, 'store'])->name('advances.store');
+    Route::post('advances/{advance}/write-off', [EmployeeAdvanceController::class, 'writeOff'])->name('advances.write-off');
+
+    Route::get('payroll', [PayrollController::class, 'index'])->name('payroll.index');
+    Route::get('payroll/create', [PayrollController::class, 'create'])->name('payroll.create');
+    Route::post('payroll', [PayrollController::class, 'store'])->name('payroll.store');
+    Route::get('payroll/adjustments', [PayrollController::class, 'adjustmentsIndex'])->name('payroll.adjustments.index');
+    Route::get('payroll/{payrollRun}', [PayrollController::class, 'show'])->name('payroll.show');
+    Route::post('payroll/{payrollRun}/approve', [PayrollController::class, 'approve'])->name('payroll.approve');
+    Route::post('payroll/{payrollRun}/pay', [PayrollController::class, 'pay'])->name('payroll.pay');
+    Route::post('payroll/items/{payrollRunItem}/adjustments', [PayrollController::class, 'storeAdjustment'])->name('payroll.adjustments.store');
+    Route::delete('payroll/adjustments/{adjustment}', [PayrollController::class, 'destroyAdjustment'])->name('payroll.adjustments.destroy');
+
+    Route::resource('expense-categories', ExpenseCategoryController::class)->except(['show']);
+    Route::resource('expenses', ExpenseController::class)->except(['show']);
+
+    Route::resource('accounts', AccountController::class)->except(['show']);
+
+    Route::get('accounting/mapping', [AccountMappingController::class, 'edit'])->name('accounting.mapping.edit');
+    Route::put('accounting/mapping', [AccountMappingController::class, 'update'])->name('accounting.mapping.update');
+
+    Route::get('vouchers/{type}/create', [VoucherController::class, 'create'])->name('vouchers.create');
+    Route::post('vouchers/{type}', [VoucherController::class, 'store'])->name('vouchers.store');
+
+    Route::get('journal-entries', [JournalEntryController::class, 'index'])->name('journal-entries.index');
+    Route::get('journal-entries/create', [JournalEntryController::class, 'create'])->name('journal-entries.create');
+    Route::post('journal-entries', [JournalEntryController::class, 'store'])->name('journal-entries.store');
+    Route::get('journal-entries/{journalEntry}', [JournalEntryController::class, 'show'])->name('journal-entries.show');
+    Route::post('journal-entries/{journalEntry}/void', [JournalEntryController::class, 'void'])->name('journal-entries.void');
+
+    Route::get('reports/ledger', [AccountingReportController::class, 'ledger'])->name('reports.ledger');
+    Route::get('reports/trial-balance', [AccountingReportController::class, 'trialBalance'])->name('reports.trial-balance');
+    Route::get('reports/profit-and-loss', [AccountingReportController::class, 'profitAndLoss'])->name('reports.profit-and-loss');
+    Route::get('reports/receivables-aging', [AccountingReportController::class, 'receivablesAging'])->name('reports.receivables-aging');
+    Route::get('reports/payables-aging', [AccountingReportController::class, 'payablesAging'])->name('reports.payables-aging');
 
     Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePurchaseReceiptRequest;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseReceipt;
+use App\Services\AccountingPostingService;
 use App\Services\AuditLogService;
 use App\Services\InventoryService;
 use Illuminate\Http\RedirectResponse;
@@ -17,6 +18,7 @@ class PurchaseReceiptController extends Controller
     public function __construct(
         private readonly AuditLogService $auditLog,
         private readonly InventoryService $inventory,
+        private readonly AccountingPostingService $accounting,
     ) {
     }
 
@@ -111,7 +113,10 @@ class PurchaseReceiptController extends Controller
 
         $this->auditLog->log('created', 'purchase_receipts', $receipt, null, ['receipt_number' => $receipt->receipt_number]);
 
-        return redirect()->route('purchase-receipts.show', $receipt)->with('status', 'Stock received successfully.');
+        $entry = $this->accounting->postPurchaseEntry($receipt);
+        $accountingNote = $entry ? '' : ' Accounting entry was not posted — finish Account Mapping setup.';
+
+        return redirect()->route('purchase-receipts.show', $receipt)->with('status', 'Stock received successfully.'.$accountingNote);
     }
 
     public function show(PurchaseReceipt $purchaseReceipt): View

@@ -20,6 +20,7 @@ class DispatchService
         private readonly RiderWalletService $wallet,
         private readonly OrderFulfillmentService $fulfillment,
         private readonly FcmService $fcm,
+        private readonly AccountingPostingService $accounting,
     ) {
     }
 
@@ -62,6 +63,23 @@ class DispatchService
         }
     }
 
+    /**
+     * Reverts an assigned-but-not-yet-picked-up order back to unassigned,
+     * clearing everything the assignment set — a clean slate for whoever
+     * picks it up next, not just a rider_id swap.
+     */
+    public function unassign(Order $order): void
+    {
+        $order->update([
+            'rider_id' => null,
+            'delivery_status' => Order::DELIVERY_STATUS_PENDING,
+            'assigned_at' => null,
+            'scheduled_dispatch_at' => null,
+            'rider_instructions' => null,
+            'cod_amount' => 0,
+        ]);
+    }
+
     public function markPickedUp(Order $order): void
     {
         $order->update([
@@ -73,6 +91,19 @@ class DispatchService
     public function markOutForDelivery(Order $order): void
     {
         $order->update(['delivery_status' => Order::DELIVERY_STATUS_OUT_FOR_DELIVERY]);
+    }
+
+    /**
+     * @param  Collection<int, Order>  $orders
+     * @return array{succeeded: list<Order>, skipped: list<array{order: Order, reason: string}>}
+     */
+    public function markManyAssigned(Collection $orders, RiderProfile $rider): array
+    {
+        return $this->bulkTransition(
+            $orders,
+            fn (Order $o) => $o->canBeAssigned() && ! $o->isCancelled(),
+            fn (Order $o) => $this->assign($o, $rider),
+        );
     }
 
     /**
@@ -165,6 +196,8 @@ class DispatchService
                     notes: "Delivery fee for order #{$order->shopify_order_number}",
                 );
             }
+
+            $this->accounting->postCogsEntry($order);
         });
     }
 

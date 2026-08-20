@@ -45,6 +45,14 @@ class RolePermissionSeeder extends Seeder
         'dispatch.view', 'dispatch.manage',
         'rider_wallet.view', 'rider_wallet.manage',
         'monitoring.view',
+        'employees.view', 'employees.create', 'employees.edit', 'employees.delete',
+        'employee_advances.view', 'employee_advances.create', 'employee_advances.edit',
+        'payroll.view', 'payroll.generate', 'payroll.approve', 'payroll.pay',
+        'expense_categories.view', 'expense_categories.create', 'expense_categories.edit', 'expense_categories.delete',
+        'expenses.view', 'expenses.create', 'expenses.edit', 'expenses.delete',
+        'accounting.manage',
+        'journal_entries.view', 'journal_entries.create', 'journal_entries.void',
+        'reports.financial.view',
     ];
 
     public function run(): void
@@ -82,6 +90,14 @@ class RolePermissionSeeder extends Seeder
             'dispatch.view', 'dispatch.manage',
             'rider_wallet.view', 'rider_wallet.manage',
             'monitoring.view',
+            'employees.view', 'employees.create', 'employees.edit', 'employees.delete',
+            'employee_advances.view', 'employee_advances.create', 'employee_advances.edit',
+            'payroll.view', 'payroll.generate', 'payroll.approve', 'payroll.pay',
+            'expense_categories.view', 'expense_categories.create', 'expense_categories.edit', 'expense_categories.delete',
+            'expenses.view', 'expenses.create', 'expenses.edit', 'expenses.delete',
+            'accounting.manage',
+            'journal_entries.view', 'journal_entries.create', 'journal_entries.void',
+            'reports.financial.view',
         ]);
 
         Role::findByName('Dispatch Manager')->syncPermissions([
@@ -114,6 +130,13 @@ class RolePermissionSeeder extends Seeder
             'purchase_orders.view', 'purchase_receipts.view',
             'stock.view',
             'orders.view',
+            'employees.view',
+            'employee_advances.view', 'employee_advances.create', 'employee_advances.edit',
+            'payroll.view', 'payroll.generate', 'payroll.approve', 'payroll.pay',
+            'expense_categories.view',
+            'expenses.view', 'expenses.create', 'expenses.edit',
+            'journal_entries.view', 'journal_entries.create',
+            'reports.financial.view',
         ]);
 
         // Super Admin bypasses permission checks entirely via Gate::before (see AuthServiceProvider).

@@ -39,4 +39,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(RiderProfile::class);
     }
+
+    public function employee(): HasOne
+    {
+        return $this->hasOne(Employee::class);
+    }
 }

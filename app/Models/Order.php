@@ -126,6 +126,16 @@ class Order extends Model
             ], true);
     }
 
+    /**
+     * Unassigning only makes sense before pickup — once a rider has the
+     * parcel in hand, reassignment happens by picking a different rider via
+     * canBeAssigned() rather than reverting to unassigned.
+     */
+    public function canBeUnassigned(): bool
+    {
+        return $this->delivery_status === self::DELIVERY_STATUS_ASSIGNED && ! $this->isCancelled();
+    }
+
     public function canBeMarkedPickedUp(): bool
     {
         return $this->delivery_status === self::DELIVERY_STATUS_ASSIGNED && ! $this->isCancelled();
