@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Exceptions\InsufficientStockException;
 use App\Exceptions\WarehouseNotConfiguredException;
 use App\Exports\OrdersExport;
+use App\Http\Requests\StoreOrderRequest;
+use App\Models\Channel;
 use App\Models\Order;
+use App\Models\ProductVariant;
 use App\Services\AccountingPostingService;
 use App\Services\AuditLogService;
 use App\Services\OrderFulfillmentService;
@@ -17,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -48,11 +52,99 @@ class OrderController extends Controller
         $totalSum = (clone $query)->sum('total');
         $totalCount = (clone $query)->count();
 
-        $orders = $query->with(['items', 'rider.user'])->orderBy('shopify_created_at', $sort)->paginate($perPage)->withQueryString();
+        $orders = $query->with(['items', 'rider.user', 'channel'])->orderBy('shopify_created_at', $sort)->paginate($perPage)->withQueryString();
 
         return view('orders.index', compact(
             'orders', 'dateFrom', 'dateTo', 'sort', 'perPage', 'isDefaultDateRange', 'totalSum', 'totalCount',
-        ));
+        ) + ['channels' => Channel::orderBy('name')->pluck('name', 'id')]);
+    }
+
+    public function create(): View
+    {
+        $this->authorize('create', Order::class);
+
+        return view('orders.create', [
+            // Shopify orders only ever arrive via the sync — that channel is
+            // reserved so staff can't accidentally attribute a phone/WhatsApp
+            // order to it here.
+            'channels' => Channel::where('status', Channel::STATUS_ACTIVE)->where('code', '!=', 'shopify')->orderBy('name')->get(),
+            'variants' => ProductVariant::with('product')->where('is_active', true)->get(),
+        ]);
+    }
+
+    public function store(StoreOrderRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $order = DB::transaction(function () use ($validated) {
+            $subtotal = collect($validated['items'])->sum(fn ($item) => $item['quantity'] * $item['unit_price']);
+            $discountTotal = (float) ($validated['discount_total'] ?? 0);
+            $taxTotal = (float) ($validated['tax_total'] ?? 0);
+            $shippingTotal = (float) ($validated['shipping_total'] ?? 0);
+            $total = $subtotal - $discountTotal + $taxTotal + $shippingTotal;
+
+            $address = [
+                'name' => $validated['customer_name'],
+                'address1' => $validated['address1'],
+                'address2' => $validated['address2'] ?? null,
+                'city' => $validated['city'],
+                'country' => $validated['country'],
+                'phone' => $validated['customer_phone'],
+            ];
+
+            $order = Order::create([
+                'shopify_order_id' => 'local-'.Str::uuid(),
+                'shopify_order_number' => $this->nextLocalOrderNumber(),
+                'channel_id' => $validated['channel_id'],
+                'customer_name' => $validated['customer_name'],
+                'customer_email' => $validated['customer_email'] ?? null,
+                'customer_phone' => $validated['customer_phone'],
+                'billing_address' => $address,
+                'shipping_address' => $address,
+                'order_status' => Order::ORDER_STATUS_PENDING,
+                'payment_status' => $validated['payment_status'],
+                'delivery_status' => Order::DELIVERY_STATUS_PENDING,
+                'currency' => 'PKR',
+                'subtotal' => $subtotal,
+                'discount_total' => $discountTotal,
+                'tax_total' => $taxTotal,
+                'shipping_total' => $shippingTotal,
+                'total' => $total,
+                // No partial-payment amount is captured on this simple entry
+                // form — "paid" clears the balance, anything else leaves the
+                // full total outstanding, same as an unpaid Shopify order.
+                'total_outstanding' => $validated['payment_status'] === Order::PAYMENT_STATUS_PAID ? 0 : $total,
+                'notes' => $validated['notes'] ?? null,
+                'shopify_created_at' => now(),
+            ]);
+
+            foreach ($validated['items'] as $item) {
+                $variant = ProductVariant::findOrFail($item['product_variant_id']);
+
+                $order->items()->create([
+                    'product_variant_id' => $variant->id,
+                    'sku' => $variant->sku,
+                    'product_name' => $variant->name,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'total_price' => $item['quantity'] * $item['unit_price'],
+                ]);
+            }
+
+            return $order;
+        });
+
+        $this->auditLog->log('created', 'orders', $order, null, ['shopify_order_number' => $order->shopify_order_number]);
+
+        return redirect()->route('orders.show', $order)
+            ->with('status', "Order {$order->shopify_order_number} created as pending — confirm it below when you're ready to allocate stock.");
+    }
+
+    private function nextLocalOrderNumber(): string
+    {
+        $next = Order::withTrashed()->where('shopify_order_id', 'like', 'local-%')->count() + 1;
+
+        return 'LOCAL-'.str_pad((string) $next, 6, '0', STR_PAD_LEFT);
     }
 
     public function exportPdf(Request $request): Response
@@ -101,6 +193,7 @@ class OrderController extends Controller
         $query = Order::query()
             ->when($request->filled('order_status'), fn ($q) => $q->where('order_status', $request->query('order_status')))
             ->when($request->filled('delivery_status'), fn ($q) => $q->where('delivery_status', $request->query('delivery_status')))
+            ->when($request->filled('channel_id'), fn ($q) => $q->where('channel_id', $request->query('channel_id')))
             ->when($dateFrom, fn ($q) => $q->where('shopify_created_at', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->where('shopify_created_at', '<=', $dateTo));
 
@@ -111,7 +204,7 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load('items.productVariant.unit');
+        $order->load('items.productVariant.unit', 'channel');
 
         return view('orders.show', compact('order'));
     }
@@ -176,11 +269,14 @@ class OrderController extends Controller
         // Cancel on Shopify's side first — if this fails, the local
         // cancellation doesn't proceed either, so the two systems never
         // drift out of sync (deliberate: no "cancelled here but still open
-        // on Shopify" state).
-        try {
-            $this->shopifySync->cancelInShopify($order);
-        } catch (Throwable $e) {
-            return back()->with('error', "Cannot cancel order: Shopify cancellation failed — {$e->getMessage()}");
+        // on Shopify" state). Manually-entered orders (phone/WhatsApp/etc.)
+        // never existed on Shopify, so there's nothing to cancel there.
+        if ($order->isFromShopify()) {
+            try {
+                $this->shopifySync->cancelInShopify($order);
+            } catch (Throwable $e) {
+                return back()->with('error', "Cannot cancel order: Shopify cancellation failed — {$e->getMessage()}");
+            }
         }
 
         $wasConfirmed = $order->order_status === Order::ORDER_STATUS_CONFIRMED;

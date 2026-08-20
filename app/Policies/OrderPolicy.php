@@ -17,6 +17,11 @@ class OrderPolicy
         return $user->can('orders.view');
     }
 
+    public function create(User $user): bool
+    {
+        return $user->can('orders.create');
+    }
+
     public function confirm(User $user, Order $order): bool
     {
         return $user->can('orders.edit') && $order->canBeConfirmed();

@@ -11,7 +11,9 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\AuditLogService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -41,30 +43,71 @@ class RiderController extends Controller
      * (orders.report-pdf / OrdersExport) so the two are always identical in
      * shape — a rider-scoped slice of the same report, not a separate one.
      */
-    public function manifest(RiderProfile $rider): Response
+    public function manifest(Request $request, RiderProfile $rider): Response
     {
         $this->authorize('dispatch.view');
 
-        $orders = $this->activeOrdersFor($rider);
+        $orders = $this->activeOrdersFor($rider, $request->query('date_from'), $request->query('date_to'));
 
         return Pdf::loadView('orders.report-pdf', compact('orders'))
             ->setPaper('a4', 'landscape')
             ->download("delivery-manifest-{$rider->user->name}-".now()->format('Y-m-d').'.pdf');
     }
 
-    public function manifestExcel(RiderProfile $rider): BinaryFileResponse
+    public function manifestExcel(Request $request, RiderProfile $rider): BinaryFileResponse
     {
         $this->authorize('dispatch.view');
 
-        $orders = $this->activeOrdersFor($rider);
+        $orders = $this->activeOrdersFor($rider, $request->query('date_from'), $request->query('date_to'));
 
         return Excel::download(new OrdersExport($orders), "delivery-manifest-{$rider->user->name}-".now()->format('Y-m-d').'.xlsx');
     }
 
     /**
+     * Orders vs Riders — for a date range, how many orders each rider was
+     * assigned, broken down by current status, plus the total order value.
+     * Lets a manager judge workload/performance distribution across riders.
+     */
+    public function report(Request $request): View
+    {
+        $this->authorize('dispatch.view');
+
+        $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : now()->startOfMonth();
+        $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : now()->endOfDay();
+
+        $orders = Order::with('rider.user')
+            ->whereNotNull('rider_id')
+            ->whereBetween('shopify_created_at', [$dateFrom, $dateTo])
+            ->get();
+
+        $rows = $orders->groupBy('rider_id')
+            ->map(fn ($riderOrders) => [
+                'rider' => $riderOrders->first()->rider,
+                'total_orders' => $riderOrders->count(),
+                'assigned' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_ASSIGNED)->count(),
+                'picked_up' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_PICKED_UP)->count(),
+                'out_for_delivery' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_OUT_FOR_DELIVERY)->count(),
+                'delivered' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)->count(),
+                'failed' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_FAILED)->count(),
+                'returned' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_RETURNED)->count(),
+                'total_amount' => $riderOrders->sum('total'),
+            ])
+            ->sortByDesc('total_orders')
+            ->values();
+
+        return view('riders.report', [
+            'rows' => $rows,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'grandTotalOrders' => $rows->sum('total_orders'),
+            'grandTotalAmount' => $rows->sum('total_amount'),
+        ]);
+    }
+
+    /**
      * @return \Illuminate\Database\Eloquent\Collection<int, Order>
      */
-    private function activeOrdersFor(RiderProfile $rider): \Illuminate\Database\Eloquent\Collection
+    private function activeOrdersFor(RiderProfile $rider, ?string $dateFrom = null, ?string $dateTo = null): \Illuminate\Database\Eloquent\Collection
     {
         $rider->load('user');
 
@@ -75,6 +118,12 @@ class RiderController extends Controller
                 Order::DELIVERY_STATUS_PICKED_UP,
                 Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
             ])
+            // Matches whatever date range is currently applied on the
+            // Dispatch Board — without this, the manifest silently included
+            // every active order for the rider regardless of the filter
+            // staff had selected there.
+            ->when($dateFrom, fn ($q) => $q->where('shopify_created_at', '>=', Carbon::parse($dateFrom)->startOfDay()))
+            ->when($dateTo, fn ($q) => $q->where('shopify_created_at', '<=', Carbon::parse($dateTo)->endOfDay()))
             ->orderBy('assigned_at')
             ->get();
     }

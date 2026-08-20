@@ -10,6 +10,8 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 
 class OrdersExport implements FromCollection, WithHeadings, WithMapping
 {
+    private int $rowNumber = 0;
+
     /**
      * @param  Collection<int, Order>  $orders  Expected to have 'items' and 'rider.user' eager-loaded.
      */
@@ -25,7 +27,7 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'Order No', 'Customer Name', 'Customer Contact',
+            'Sr#', 'Order No', 'Customer Name', 'Customer Contact',
             'Order Amount', 'Discount', 'Delivery Charges', 'Total Amount',
             'Address', 'Order Detail', 'Order Date', 'Order Status', 'Delivery Status', 'Delivered Date/Time',
             'Payment Status', 'Rider Name', 'Scheduled Dispatch', 'Instructions for Rider',
@@ -38,6 +40,7 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
     public function map($order): array
     {
         return [
+            ++$this->rowNumber,
             $order->shopify_order_number ?? $order->shopify_order_id,
             $order->customer_name,
             $order->customer_phone,

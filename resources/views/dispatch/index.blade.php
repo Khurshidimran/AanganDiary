@@ -147,7 +147,7 @@
                             <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                                 <div class="fw-semibold d-flex align-items-center gap-2">
                                     @can('dispatch.manage')
-                                        @if ($order->canBeAssigned() && ! $order->isCancelled())
+                                        @if (in_array($order->delivery_status, ['pending', 'failed']) && $order->canBeAssigned() && ! $order->isCancelled())
                                             <input type="checkbox" form="bulk-assign-form" name="order_ids[]" value="{{ $order->id }}" class="form-check-input bulk-select-checkbox mt-0">
                                         @endif
                                     @endcan
@@ -176,12 +176,28 @@
                             @if ($order->delivery_status === 'failed' && $order->delivery_failure_reason)
                                 <div class="alert alert-danger py-1 px-2 small mb-2">Failed attempt: {{ $order->delivery_failure_reason }}</div>
                             @endif
-                            @if ($order->rider_instructions)
-                                <div class="small text-muted mb-2"><i class="bi bi-chat-left-text"></i> {{ $order->rider_instructions }}</div>
-                            @endif
 
                             @can('dispatch.manage')
-                                @if ($order->canBeAssigned() && ! $order->isCancelled())
+                                @unless (in_array($order->delivery_status, ['delivered', 'returned']) || $order->isCancelled())
+                                    <form method="POST" action="{{ route('dispatch.instructions', $order) }}" class="js-dispatch-form d-flex gap-2 mb-2">
+                                        @csrf
+                                        <input type="text" name="rider_instructions" value="{{ $order->rider_instructions }}" maxlength="1000"
+                                               class="form-control form-control-sm" placeholder="Instructions for rider (optional)">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">Save</button>
+                                    </form>
+                                @else
+                                    @if ($order->rider_instructions)
+                                        <div class="small text-muted mb-2"><i class="bi bi-chat-left-text"></i> {{ $order->rider_instructions }}</div>
+                                    @endif
+                                @endunless
+                            @else
+                                @if ($order->rider_instructions)
+                                    <div class="small text-muted mb-2"><i class="bi bi-chat-left-text"></i> {{ $order->rider_instructions }}</div>
+                                @endif
+                            @endcan
+
+                            @can('dispatch.manage')
+                                @if (in_array($order->delivery_status, ['pending', 'failed']) && $order->canBeAssigned() && ! $order->isCancelled())
                                     @if ($order->delivery_status === 'failed')
                                         <div class="text-muted small text-uppercase mb-1" style="font-size: .7rem;">Relocate — reassign rider:</div>
                                     @endif
@@ -196,10 +212,9 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-sm btn-link p-0 mt-1" data-bs-toggle="collapse" data-bs-target="#opts-{{ $order->id }}">
-                                            More options
+                                            Schedule dispatch time
                                         </button>
                                         <div class="collapse mt-2" id="opts-{{ $order->id }}">
-                                            <input type="text" name="rider_instructions" maxlength="1000" class="form-control form-control-sm mb-2" placeholder="Instructions for rider (optional)">
                                             <input type="datetime-local" name="scheduled_dispatch_at" value="{{ now()->addDay()->setTime(8, 0)->format('Y-m-d\TH:i') }}" class="form-control form-control-sm" title="Scheduled dispatch date/time — defaults to 8:00 AM next day, adjust if needed">
                                         </div>
                                     </form>
@@ -326,10 +341,10 @@
                                         {{ $activeCount > 0 ? 'On delivery' : 'Available' }}
                                     </span>
                                     @can('dispatch.view')
-                                        <a href="{{ route('riders.manifest', $rider) }}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Print delivery manifest (PDF)">
+                                        <a href="{{ route('riders.manifest', ['rider' => $rider, 'date_from' => $dateFrom->toDateString(), 'date_to' => $dateTo->toDateString()]) }}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Print delivery manifest for the selected date range (PDF)">
                                             <i class="bi bi-file-earmark-pdf"></i>
                                         </a>
-                                        <a href="{{ route('riders.manifest.excel', $rider) }}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Download delivery manifest (Excel)">
+                                        <a href="{{ route('riders.manifest.excel', ['rider' => $rider, 'date_from' => $dateFrom->toDateString(), 'date_to' => $dateTo->toDateString()]) }}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Download delivery manifest for the selected date range (Excel)">
                                             <i class="bi bi-file-earmark-excel"></i>
                                         </a>
                                     @endcan

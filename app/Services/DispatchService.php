@@ -80,6 +80,11 @@ class DispatchService
         ]);
     }
 
+    public function updateInstructions(Order $order, ?string $instructions): void
+    {
+        $order->update(['rider_instructions' => $instructions]);
+    }
+
     public function markPickedUp(Order $order): void
     {
         $order->update([

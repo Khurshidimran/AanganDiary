@@ -7,6 +7,7 @@
         <div>
             <h1 class="h4 mb-0">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</h1>
             <div class="d-flex gap-2 mt-1">
+                <span class="badge {{ $order->channel?->code === 'shopify' ? 'bg-success' : 'bg-info text-dark' }}">{{ $order->channel?->name ?? 'Unknown channel' }}</span>
                 <span class="badge {{ match ($order->order_status) {
                     'confirmed' => 'bg-success',
                     'cancelled' => 'bg-danger',

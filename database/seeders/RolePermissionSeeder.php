@@ -40,7 +40,8 @@ class RolePermissionSeeder extends Seeder
         'stock_transfers.view', 'stock_transfers.create', 'stock_transfers.edit', 'stock_transfers.delete', 'stock_transfers.approve',
         'stock_adjustments.view', 'stock_adjustments.create', 'stock_adjustments.edit', 'stock_adjustments.delete',
         'shopify.view', 'shopify.sync',
-        'orders.view', 'orders.edit',
+        'orders.view', 'orders.create', 'orders.edit',
+        'channels.view', 'channels.create', 'channels.edit', 'channels.delete',
         'riders.view', 'riders.create', 'riders.edit', 'riders.delete',
         'dispatch.view', 'dispatch.manage',
         'rider_wallet.view', 'rider_wallet.manage',
@@ -85,7 +86,8 @@ class RolePermissionSeeder extends Seeder
             'stock_transfers.view', 'stock_transfers.create', 'stock_transfers.edit', 'stock_transfers.delete', 'stock_transfers.approve',
             'stock_adjustments.view', 'stock_adjustments.create', 'stock_adjustments.edit', 'stock_adjustments.delete',
             'shopify.view', 'shopify.sync',
-            'orders.view', 'orders.edit',
+            'orders.view', 'orders.create', 'orders.edit',
+            'channels.view', 'channels.create', 'channels.edit', 'channels.delete',
             'riders.view', 'riders.create', 'riders.edit', 'riders.delete',
             'dispatch.view', 'dispatch.manage',
             'rider_wallet.view', 'rider_wallet.manage',
@@ -101,7 +103,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         Role::findByName('Dispatch Manager')->syncPermissions([
-            'orders.view', 'orders.edit',
+            'orders.view', 'orders.create', 'orders.edit',
             'riders.view', 'riders.create', 'riders.edit',
             'dispatch.view', 'dispatch.manage',
             'rider_wallet.view', 'rider_wallet.manage',

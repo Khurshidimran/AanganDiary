@@ -4,6 +4,7 @@ namespace App\Services\Shopify;
 
 use App\Exceptions\InsufficientStockException;
 use App\Exceptions\WarehouseNotConfiguredException;
+use App\Models\Channel;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\ShopifySyncLog;
@@ -32,10 +33,22 @@ class ShopifyOrderSyncService
         'authorized' => Order::PAYMENT_STATUS_PENDING,
     ];
 
+    private ?Channel $shopifyChannel = null;
+
     public function __construct(
         private readonly ShopifyClient $client,
         private readonly OrderFulfillmentService $fulfillment,
     ) {
+    }
+
+    /**
+     * Looked up once per sync batch (not per order) — the Shopify channel is
+     * seeded/system-protected (see ChannelSeeder), so this only returns null
+     * if a deployment somehow never ran that seeder.
+     */
+    private function shopifyChannel(): ?Channel
+    {
+        return $this->shopifyChannel ??= Channel::where('code', 'shopify')->first();
     }
 
     /**
@@ -51,6 +64,7 @@ class ShopifyOrderSyncService
 
             $order->fill([
                 'shopify_order_number' => $payload['name'] ?? ($payload['order_number'] ?? null),
+                'channel_id' => $order->channel_id ?? $this->shopifyChannel()?->id,
                 'customer_name' => $this->customerName($payload),
                 'customer_email' => $payload['email'] ?? ($payload['contact_email'] ?? null),
                 // Some order sources (e.g. third-party COD form apps) leave both the

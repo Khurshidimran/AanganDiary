@@ -21,6 +21,7 @@
     <table>
         <thead>
             <tr>
+                <th>Sr#</th>
                 <th>Order No</th>
                 <th>Customer</th>
                 <th>Contact</th>
@@ -43,6 +44,7 @@
         <tbody>
             @foreach ($orders as $order)
                 <tr>
+                    <td>{{ $loop->iteration }}</td>
                     <td>{{ $order->shopify_order_number ?? $order->shopify_order_id }}</td>
                     <td>{{ $order->customer_name ?? '—' }}</td>
                     <td>{{ $order->customer_phone ?? '—' }}</td>

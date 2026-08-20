@@ -5,6 +5,7 @@ use App\Http\Controllers\AccountingReportController;
 use App\Http\Controllers\AccountMappingController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DispatchController;
 use App\Http\Controllers\EmployeeAdvanceController;
@@ -43,6 +44,7 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('users', UserController::class)->except(['show']);
     Route::resource('roles', RoleController::class)->except(['show']);
+    Route::resource('channels', ChannelController::class)->except(['show']);
     Route::resource('categories', CategoryController::class)->except(['show']);
     Route::resource('brands', BrandController::class)->except(['show']);
     Route::resource('units', UnitController::class)->except(['show']);
@@ -76,7 +78,7 @@ Route::middleware('auth')->group(function () {
     // priority over the resource's GET orders/{order} wildcard match.
     Route::get('orders/print-labels', [OrderController::class, 'bulkLabels'])->name('orders.labels.bulk');
 
-    Route::resource('orders', OrderController::class)->only(['index', 'show']);
+    Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('orders/{order}/label', [OrderController::class, 'label'])->name('orders.label');
     Route::get('orders/export/pdf', [OrderController::class, 'exportPdf'])->name('orders.export.pdf');
     Route::get('orders/export/excel', [OrderController::class, 'exportExcel'])->name('orders.export.excel');
@@ -93,6 +95,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('riders', RiderController::class)->except(['show']);
     Route::get('riders/{rider}/manifest', [RiderController::class, 'manifest'])->name('riders.manifest');
     Route::get('riders/{rider}/manifest/excel', [RiderController::class, 'manifestExcel'])->name('riders.manifest.excel');
+    Route::get('riders-report', [RiderController::class, 'report'])->name('riders.report');
     Route::post('riders/{rider}/check-in', [RiderController::class, 'checkIn'])->name('riders.check-in');
     Route::post('riders/{rider}/check-out', [RiderController::class, 'checkOut'])->name('riders.check-out');
     Route::get('riders/{rider}/wallet', [RiderWalletController::class, 'show'])->name('riders.wallet');
@@ -103,6 +106,7 @@ Route::middleware('auth')->group(function () {
     Route::get('dispatch', [DispatchController::class, 'index'])->name('dispatch.index');
     Route::post('dispatch/{order}/assign', [DispatchController::class, 'assign'])->name('dispatch.assign');
     Route::post('dispatch/{order}/unassign', [DispatchController::class, 'unassign'])->name('dispatch.unassign');
+    Route::post('dispatch/{order}/instructions', [DispatchController::class, 'updateInstructions'])->name('dispatch.instructions');
     Route::post('dispatch/assign/bulk', [DispatchController::class, 'bulkAssign'])->name('dispatch.assign.bulk');
     Route::post('dispatch/{order}/picked-up', [DispatchController::class, 'pickedUp'])->name('dispatch.picked-up');
     Route::post('dispatch/{order}/out-for-delivery', [DispatchController::class, 'outForDelivery'])->name('dispatch.out-for-delivery');

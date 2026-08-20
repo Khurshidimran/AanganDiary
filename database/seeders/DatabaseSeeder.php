@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             UnitSeeder::class,
             ExpenseCategorySeeder::class,
             ChartOfAccountsSeeder::class,
+            ChannelSeeder::class,
             DummyDataSeeder::class,
         ]);
     }

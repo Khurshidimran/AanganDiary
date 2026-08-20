@@ -105,6 +105,22 @@ class DispatchController extends Controller
         return view('dispatch.index', compact('orders', 'riders', 'statusCounts', 'defaultWarehouse', 'dateFrom', 'dateTo'));
     }
 
+    public function updateInstructions(Request $request, Order $order): RedirectResponse
+    {
+        $this->authorize('dispatch.manage');
+
+        if (in_array($order->delivery_status, [Order::DELIVERY_STATUS_DELIVERED, Order::DELIVERY_STATUS_RETURNED], true) || $order->isCancelled()) {
+            return back()->with('error', 'This order is no longer active — instructions can\'t be updated.');
+        }
+
+        $validated = $request->validate(['rider_instructions' => ['nullable', 'string', 'max:1000']]);
+
+        $this->dispatch->updateInstructions($order, $validated['rider_instructions'] ?? null);
+        $this->auditLog->log('instructions_updated', 'orders', $order, null, ['rider_instructions' => $validated['rider_instructions'] ?? null]);
+
+        return back()->with('status', 'Instructions saved.');
+    }
+
     public function unassign(Order $order): RedirectResponse
     {
         $this->authorize('dispatch.manage');

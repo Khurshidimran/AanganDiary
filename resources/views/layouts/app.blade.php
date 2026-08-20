@@ -45,10 +45,17 @@
                 @can('orders.view')
                     <li class="nav-section-title">Orders</li>
                     <li class="nav-item">
-                        <a href="{{ route('orders.index') }}" class="nav-link {{ request()->routeIs('orders.*') ? 'active' : '' }}">
+                        <a href="{{ route('orders.index') }}" class="nav-link {{ request()->routeIs('orders.index') || request()->routeIs('orders.show') ? 'active' : '' }}">
                             <i class="bi bi-bag-check me-2"></i> Orders
                         </a>
                     </li>
+                    @can('orders.create')
+                        <li class="nav-item">
+                            <a href="{{ route('orders.create') }}" class="nav-link {{ request()->routeIs('orders.create') ? 'active' : '' }}">
+                                <i class="bi bi-plus-circle me-2"></i> New Order
+                            </a>
+                        </li>
+                    @endcan
                 @endcan
 
                 @canany(['dispatch.view', 'riders.view'])
@@ -62,8 +69,13 @@
                     @endcan
                     @can('riders.view')
                         <li class="nav-item">
-                            <a href="{{ route('riders.index') }}" class="nav-link {{ request()->routeIs('riders.*') ? 'active' : '' }}">
+                            <a href="{{ route('riders.index') }}" class="nav-link {{ request()->routeIs('riders.index') || request()->routeIs('riders.create') || request()->routeIs('riders.edit') ? 'active' : '' }}">
                                 <i class="bi bi-bicycle me-2"></i> Riders
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('riders.report') }}" class="nav-link {{ request()->routeIs('riders.report') ? 'active' : '' }}">
+                                <i class="bi bi-bar-chart-line me-2"></i> Orders by Rider
                             </a>
                         </li>
                     @endcan
@@ -270,7 +282,7 @@
                     </li>
                 @endcan
 
-                @canany(['users.view', 'roles.view', 'settings.view'])
+                @canany(['users.view', 'roles.view', 'settings.view', 'channels.view'])
                     <li class="nav-section-title">Administration</li>
                     @can('users.view')
                         <li class="nav-item">
@@ -283,6 +295,13 @@
                         <li class="nav-item">
                             <a href="{{ route('roles.index') }}" class="nav-link {{ request()->routeIs('roles.*') ? 'active' : '' }}">
                                 <i class="bi bi-shield-lock me-2"></i> Roles
+                            </a>
+                        </li>
+                    @endcan
+                    @can('channels.view')
+                        <li class="nav-item">
+                            <a href="{{ route('channels.index') }}" class="nav-link {{ request()->routeIs('channels.*') ? 'active' : '' }}">
+                                <i class="bi bi-share me-2"></i> Channels
                             </a>
                         </li>
                     @endcan

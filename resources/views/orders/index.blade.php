@@ -3,7 +3,14 @@
 @section('title', 'Orders')
 
 @section('content')
-    <h1 class="h4 mb-3">Orders</h1>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0">Orders</h1>
+        @can('create', \App\Models\Order::class)
+            <a href="{{ route('orders.create') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg"></i> New Order
+            </a>
+        @endcan
+    </div>
 
     <form method="GET" class="row g-2 mb-3 align-items-end">
         <div class="col-md-2">
@@ -21,6 +28,15 @@
                 <option value="">All Delivery Statuses</option>
                 @foreach (['pending', 'assigned', 'picked_up', 'out_for_delivery', 'delivered', 'failed', 'returned'] as $status)
                     <option value="{{ $status }}" @selected(request('delivery_status') === $status)>{{ str($status)->headline() }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small text-muted mb-1">Channel</label>
+            <select name="channel_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Channels</option>
+                @foreach ($channels as $id => $name)
+                    <option value="{{ $id }}" @selected((string) request('channel_id') === (string) $id)>{{ $name }}</option>
                 @endforeach
             </select>
         </div>
@@ -43,7 +59,7 @@
             </select>
         </div>
         <div class="col-md-2">
-            @if ($isDefaultDateRange && ! request()->filled('order_status') && ! request()->filled('delivery_status'))
+            @if ($isDefaultDateRange && ! request()->filled('order_status') && ! request()->filled('delivery_status') && ! request()->filled('channel_id'))
                 <span class="small text-muted">Showing this month by default</span>
             @else
                 <a href="{{ route('orders.index') }}" class="btn btn-sm btn-outline-secondary">Reset filters</a>
@@ -91,6 +107,7 @@
                     <tr>
                         <th><input type="checkbox" id="select-all-orders" class="form-check-input"></th>
                         <th>Order No</th>
+                        <th>Channel</th>
                         <th>Customer Name</th>
                         <th>Customer Contact</th>
                         <th class="text-end">Order Amount</th>
@@ -124,6 +141,7 @@
                                        class="form-check-input order-row-checkbox">
                             </td>
                             <td><a href="{{ route('orders.show', $order) }}">{{ $order->shopify_order_number ?? $order->shopify_order_id }}</a></td>
+                            <td><span class="badge {{ $order->channel?->code === 'shopify' ? 'bg-success' : 'bg-info text-dark' }}">{{ $order->channel?->name ?? '—' }}</span></td>
                             <td>{{ $order->customer_name ?? '—' }}</td>
                             <td>{{ $order->customer_phone ?? '—' }}</td>
                             <td class="text-end">{{ number_format($order->subtotal, 2) }}</td>
@@ -160,7 +178,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="19" class="text-center text-muted py-4">No orders found.</td>
+                            <td colspan="20" class="text-center text-muted py-4">No orders found.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'shopify_order_id', 'shopify_order_number', 'customer_name', 'customer_email', 'customer_phone',
+    'shopify_order_id', 'shopify_order_number', 'channel_id', 'customer_name', 'customer_email', 'customer_phone',
     'billing_address', 'shipping_address', 'order_status', 'payment_status', 'delivery_status',
     'currency', 'subtotal', 'discount_total', 'tax_total', 'shipping_total', 'total', 'total_outstanding', 'notes', 'shopify_created_at',
     'rider_id', 'route_sequence', 'assigned_at', 'scheduled_dispatch_at', 'rider_instructions',
@@ -69,6 +69,22 @@ class Order extends Model
     public function rider(): BelongsTo
     {
         return $this->belongsTo(RiderProfile::class, 'rider_id');
+    }
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channel::class);
+    }
+
+    /**
+     * Manually-entered orders (phone/WhatsApp/etc.) get a synthetic
+     * shopify_order_id (that column is NOT NULL + UNIQUE with no default) —
+     * this is how the rest of the app tells the two apart, e.g. to skip
+     * calling Shopify's cancel API for an order Shopify never knew about.
+     */
+    public function isFromShopify(): bool
+    {
+        return ! str_starts_with((string) $this->shopify_order_id, 'local-');
     }
 
     /**
