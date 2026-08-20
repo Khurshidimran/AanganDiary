@@ -182,7 +182,7 @@
                                         </button>
                                         <div class="collapse mt-2" id="opts-{{ $order->id }}">
                                             <input type="text" name="rider_instructions" maxlength="1000" class="form-control form-control-sm mb-2" placeholder="Instructions for rider (optional)">
-                                            <input type="datetime-local" name="scheduled_dispatch_at" class="form-control form-control-sm" title="Scheduled dispatch date/time (defaults to now)">
+                                            <input type="datetime-local" name="scheduled_dispatch_at" value="{{ now()->addDay()->setTime(8, 0)->format('Y-m-d\TH:i') }}" class="form-control form-control-sm" title="Scheduled dispatch date/time — defaults to 8:00 AM next day, adjust if needed">
                                         </div>
                                     </form>
                                 @elseif ($order->delivery_status === 'assigned')
