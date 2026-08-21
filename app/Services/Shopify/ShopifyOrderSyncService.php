@@ -54,6 +54,45 @@ class ShopifyOrderSyncService
     }
 
     /**
+     * Maps Shopify's own order-origin identifier (source_name — e.g. 'web'
+     * for Online Store, 'shopify_draft_order' for Draft Orders) to one of
+     * our seeded Channel rows (see ChannelSeeder). Falls back to the generic
+     * "Shopify" channel for a source_name that isn't recognized yet (a new
+     * sales channel, or a third-party app whose identifier hasn't been
+     * mapped) — never null as long as the seeder has run.
+     */
+    public function resolveChannel(?string $sourceName): ?Channel
+    {
+        if ($sourceName) {
+            $matched = Channel::where('source_name', $sourceName)->first();
+
+            if ($matched) {
+                return $matched;
+            }
+        }
+
+        return $this->shopifyChannel();
+    }
+
+    /**
+     * An order already sitting on a specific, correctly-resolved channel (or
+     * one a staff member deliberately corrected) is left alone — only an
+     * order still on the generic "Shopify" fallback (or with no channel at
+     * all) gets (re-)resolved from the current source_name. This means an
+     * order synced before its real channel was mapped self-heals the next
+     * time Shopify sends a webhook for it or it's re-pulled, with no
+     * separate backfill step required.
+     */
+    private function resolveChannelId(Order $order, ?string $sourceName): ?string
+    {
+        if ($order->channel_id && $order->channel_id !== $this->shopifyChannel()?->id) {
+            return $order->channel_id;
+        }
+
+        return $this->resolveChannel($sourceName)?->id ?? $order->channel_id;
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     public function sync(array $payload): Order
@@ -67,7 +106,8 @@ class ShopifyOrderSyncService
 
             $order->fill([
                 'shopify_order_number' => $payload['name'] ?? ($payload['order_number'] ?? null),
-                'channel_id' => $order->channel_id ?? $this->shopifyChannel()?->id,
+                'channel_id' => $this->resolveChannelId($order, $payload['source_name'] ?? null),
+                'shopify_source_name' => $payload['source_name'] ?? null,
                 'customer_name' => $this->customerName($payload),
                 'customer_email' => $payload['email'] ?? ($payload['contact_email'] ?? null),
                 // Some order sources (e.g. third-party COD form apps) leave both the

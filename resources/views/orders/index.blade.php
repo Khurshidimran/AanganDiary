@@ -41,6 +41,15 @@
             </select>
         </div>
         <div class="col-md-2">
+            <label class="form-label small text-muted mb-1">Rider</label>
+            <select name="rider_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Riders</option>
+                @foreach ($riders as $id => $name)
+                    <option value="{{ $id }}" @selected((string) request('rider_id') === (string) $id)>{{ $name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-2">
             <label class="form-label small text-muted mb-1">From</label>
             <input type="date" name="date_from" class="form-control form-control-sm"
                    value="{{ $dateFrom?->format('Y-m-d') }}" onchange="this.form.submit()">
@@ -66,7 +75,7 @@
             </div>
         </div>
         <div class="col-md-2">
-            @if ($isDefaultDateRange && ! request()->filled('order_status') && ! request()->filled('delivery_status') && ! request()->filled('channel_id') && ! request()->filled('q'))
+            @if ($isDefaultDateRange && ! request()->filled('order_status') && ! request()->filled('delivery_status') && ! request()->filled('channel_id') && ! request()->filled('rider_id') && ! request()->filled('q'))
                 <span class="small text-muted">Showing this month by default</span>
             @else
                 <a href="{{ route('orders.index') }}" class="btn btn-sm btn-outline-secondary">Reset filters</a>

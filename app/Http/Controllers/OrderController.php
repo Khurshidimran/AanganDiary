@@ -9,6 +9,7 @@ use App\Http\Requests\StoreOrderRequest;
 use App\Models\Channel;
 use App\Models\Order;
 use App\Models\ProductVariant;
+use App\Models\RiderProfile;
 use App\Services\AccountingPostingService;
 use App\Services\AuditLogService;
 use App\Services\OrderFulfillmentService;
@@ -56,7 +57,10 @@ class OrderController extends Controller
 
         return view('orders.index', compact(
             'orders', 'dateFrom', 'dateTo', 'sort', 'perPage', 'isDefaultDateRange', 'totalSum', 'totalCount',
-        ) + ['channels' => Channel::orderBy('name')->pluck('name', 'id')]);
+        ) + [
+            'channels' => Channel::orderBy('name')->pluck('name', 'id'),
+            'riders' => RiderProfile::with('user')->get()->sortBy(fn (RiderProfile $r) => $r->user->name)->pluck('user.name', 'id'),
+        ]);
     }
 
     public function create(): View
@@ -64,10 +68,11 @@ class OrderController extends Controller
         $this->authorize('create', Order::class);
 
         return view('orders.create', [
-            // Shopify orders only ever arrive via the sync — that channel is
-            // reserved so staff can't accidentally attribute a phone/WhatsApp
-            // order to it here.
-            'channels' => Channel::where('status', Channel::STATUS_ACTIVE)->where('code', '!=', 'shopify')->orderBy('name')->get(),
+            // Shopify-origin channels (Shopify itself, Online Store, Draft
+            // Orders, the COD form app — all is_system, only ever arrive via
+            // sync) are reserved so staff can't accidentally attribute a
+            // manually-punched-in phone/WhatsApp order to one of them here.
+            'channels' => Channel::where('status', Channel::STATUS_ACTIVE)->where('is_system', false)->orderBy('name')->get(),
             'variants' => ProductVariant::with('product')->where('is_active', true)->get(),
         ]);
     }
@@ -194,6 +199,11 @@ class OrderController extends Controller
             ->when($request->filled('order_status'), fn ($q) => $q->where('order_status', $request->query('order_status')))
             ->when($request->filled('delivery_status'), fn ($q) => $q->where('delivery_status', $request->query('delivery_status')))
             ->when($request->filled('channel_id'), fn ($q) => $q->where('channel_id', $request->query('channel_id')))
+            ->when($request->filled('rider_id'), fn ($q) => $q->where('rider_id', $request->query('rider_id')))
+            // Not a UI filter of its own — set by drill-through links (e.g.
+            // the Orders-by-Rider report) so the linked list matches exactly
+            // what that report counted, which excludes cancelled orders.
+            ->when($request->boolean('exclude_cancelled'), fn ($q) => $q->where('order_status', '!=', Order::ORDER_STATUS_CANCELLED))
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = $request->query('q');
                 $q->where(fn ($oq) => $oq

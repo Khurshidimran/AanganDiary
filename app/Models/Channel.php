@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['name', 'code', 'is_system', 'status'])]
+#[Fillable(['name', 'code', 'source_name', 'is_system', 'status'])]
 class Channel extends Model
 {
     use HasUuid, SoftDeletes;

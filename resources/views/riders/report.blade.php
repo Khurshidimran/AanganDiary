@@ -65,15 +65,65 @@
                 </thead>
                 <tbody>
                     @forelse ($rows as $row)
+                        @php
+                            $baseParams = [
+                                'rider_id' => $row['rider']?->id,
+                                'date_from' => $dateFrom->format('Y-m-d'),
+                                'date_to' => $dateTo->format('Y-m-d'),
+                                'exclude_cancelled' => 1,
+                            ];
+                        @endphp
                         <tr>
                             <td>{{ $row['rider']?->user->name ?? 'Unknown' }}</td>
-                            <td class="text-end fw-semibold">{{ $row['total_orders'] }}</td>
-                            <td class="text-end">{{ $row['assigned'] }}</td>
-                            <td class="text-end">{{ $row['picked_up'] }}</td>
-                            <td class="text-end">{{ $row['out_for_delivery'] }}</td>
-                            <td class="text-end text-success">{{ $row['delivered'] }}</td>
-                            <td class="text-end {{ $row['failed'] > 0 ? 'text-danger' : '' }}">{{ $row['failed'] }}</td>
-                            <td class="text-end {{ $row['returned'] > 0 ? 'text-warning' : '' }}">{{ $row['returned'] }}</td>
+                            <td class="text-end fw-semibold">
+                                @if ($row['rider'] && $row['total_orders'] > 0)
+                                    <a href="{{ route('orders.index', $baseParams) }}">{{ $row['total_orders'] }}</a>
+                                @else
+                                    {{ $row['total_orders'] }}
+                                @endif
+                            </td>
+                            <td class="text-end">
+                                @if ($row['rider'] && $row['assigned'] > 0)
+                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'assigned']) }}">{{ $row['assigned'] }}</a>
+                                @else
+                                    {{ $row['assigned'] }}
+                                @endif
+                            </td>
+                            <td class="text-end">
+                                @if ($row['rider'] && $row['picked_up'] > 0)
+                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'picked_up']) }}">{{ $row['picked_up'] }}</a>
+                                @else
+                                    {{ $row['picked_up'] }}
+                                @endif
+                            </td>
+                            <td class="text-end">
+                                @if ($row['rider'] && $row['out_for_delivery'] > 0)
+                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'out_for_delivery']) }}">{{ $row['out_for_delivery'] }}</a>
+                                @else
+                                    {{ $row['out_for_delivery'] }}
+                                @endif
+                            </td>
+                            <td class="text-end text-success">
+                                @if ($row['rider'] && $row['delivered'] > 0)
+                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'delivered']) }}">{{ $row['delivered'] }}</a>
+                                @else
+                                    {{ $row['delivered'] }}
+                                @endif
+                            </td>
+                            <td class="text-end {{ $row['failed'] > 0 ? 'text-danger' : '' }}">
+                                @if ($row['rider'] && $row['failed'] > 0)
+                                    <a class="text-danger" href="{{ route('orders.index', $baseParams + ['delivery_status' => 'failed']) }}">{{ $row['failed'] }}</a>
+                                @else
+                                    {{ $row['failed'] }}
+                                @endif
+                            </td>
+                            <td class="text-end {{ $row['returned'] > 0 ? 'text-warning' : '' }}">
+                                @if ($row['rider'] && $row['returned'] > 0)
+                                    <a class="text-warning" href="{{ route('orders.index', $baseParams + ['delivery_status' => 'returned']) }}">{{ $row['returned'] }}</a>
+                                @else
+                                    {{ $row['returned'] }}
+                                @endif
+                            </td>
                             <td class="text-end">{{ number_format($row['total_amount'], 2) }}</td>
                         </tr>
                     @empty
