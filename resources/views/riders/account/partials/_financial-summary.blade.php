@@ -1,6 +1,24 @@
 @php
     $net = (float) $financials['net_position'];
+    $periodLabel = match ($preset) {
+        'yesterday' => 'Yesterday',
+        'this_week' => 'This Week',
+        'this_month' => 'This Month',
+        'custom' => 'Custom Range',
+        'all_time' => 'All Time',
+        default => 'Today',
+    };
 @endphp
+<div class="text-muted text-uppercase mb-2" style="font-size: .75rem; letter-spacing: .03em;">
+    Financial Position &middot; {{ $periodLabel }}
+</div>
+@if ($preset !== 'all_time')
+    <div class="alert alert-light border small py-2 px-3 mb-3">
+        <i class="bi bi-info-circle"></i> Showing activity for <strong>{{ $periodLabel }}</strong> — an older
+        unsettled balance won't appear here. Switch the period to <strong>All Time</strong> to see the true
+        current outstanding balance.
+    </div>
+@endif
 <div class="row g-3 mb-3">
     <div class="col-lg-6">
         <div class="card shadow-sm h-100 border-danger-subtle">
@@ -56,11 +74,13 @@
             <div class="text-muted text-uppercase" style="font-size: .7rem;">Net Position</div>
             <div class="fw-semibold">
                 @if ($net > 0)
-                    Rider currently owes Aangan Rs. {{ number_format($net, 2) }}
+                    {{ $preset === 'all_time' ? 'Rider currently owes' : 'Rider owes' }} Aangan Rs. {{ number_format($net, 2) }}
+                    @if ($preset !== 'all_time') for {{ $periodLabel }} @endif
                 @elseif ($net < 0)
-                    Aangan currently owes Rider Rs. {{ number_format(abs($net), 2) }}
+                    Aangan {{ $preset === 'all_time' ? 'currently owes' : 'owes' }} Rider Rs. {{ number_format(abs($net), 2) }}
+                    @if ($preset !== 'all_time') for {{ $periodLabel }} @endif
                 @else
-                    Fully settled — no balance either way.
+                    Fully settled for {{ $periodLabel }} — no balance either way.
                 @endif
             </div>
         </div>

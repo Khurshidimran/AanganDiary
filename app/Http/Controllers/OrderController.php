@@ -194,6 +194,14 @@ class OrderController extends Controller
             ->when($request->filled('order_status'), fn ($q) => $q->where('order_status', $request->query('order_status')))
             ->when($request->filled('delivery_status'), fn ($q) => $q->where('delivery_status', $request->query('delivery_status')))
             ->when($request->filled('channel_id'), fn ($q) => $q->where('channel_id', $request->query('channel_id')))
+            ->when($request->filled('q'), function ($q) use ($request) {
+                $term = $request->query('q');
+                $q->where(fn ($oq) => $oq
+                    ->where('shopify_order_number', 'like', "%{$term}%")
+                    ->orWhere('shopify_order_id', 'like', "%{$term}%")
+                    ->orWhere('customer_name', 'like', "%{$term}%")
+                    ->orWhere('customer_phone', 'like', "%{$term}%"));
+            })
             ->when($dateFrom, fn ($q) => $q->where('shopify_created_at', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->where('shopify_created_at', '<=', $dateTo));
 

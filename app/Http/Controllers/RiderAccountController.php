@@ -33,12 +33,9 @@ class RiderAccountController extends Controller
 
         [$from, $to, $preset] = $this->resolveDateRange($request);
 
-        $stats = $this->settlement->operationalStats($rider, $from, $to);
-        $financials = $this->settlement->financials($rider);
-        $paymentStatus = $this->settlement->earningsPaymentStatus($rider);
-
         $attempts = DeliveryAttempt::with('order')
             ->where('rider_id', $rider->id)
+            ->when($from && $to, fn ($q) => $q->whereBetween('assigned_at', [$from, $to]))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = $request->query('q');
@@ -51,12 +48,25 @@ class RiderAccountController extends Controller
             ->paginate(20, ['*'], 'orders_page')
             ->withQueryString();
 
+        // The Orders tab's own status pills/search/pagination fetch this
+        // same route via AJAX (X-Requested-With) so filtering it never
+        // reloads the whole page — everything else on the page (KPIs,
+        // financials, other tabs) stays untouched by that request.
+        if ($request->ajax()) {
+            return view('riders.account.partials._tab-orders', compact('rider', 'attempts', 'preset', 'from', 'to'));
+        }
+
+        $stats = $this->settlement->operationalStats($rider, $from, $to);
+        $financials = $this->settlement->financials($rider, $from, $to);
+        $paymentStatus = $this->settlement->earningsPaymentStatus($rider, $from, $to);
+
         $cashTransactions = $rider->walletTransactions()
             ->whereIn('transaction_type', [
                 RiderWalletTransaction::TYPE_COD_COLLECTED,
                 RiderWalletTransaction::TYPE_COD_SETTLED,
                 RiderWalletTransaction::TYPE_ADJUSTMENT,
             ])
+            ->when($from && $to, fn ($q) => $q->whereRaw('COALESCE(transaction_date, DATE(created_at)) BETWEEN ? AND ?', [$from->toDateString(), $to->toDateString()]))
             ->latest('created_at')
             ->paginate(20, ['*'], 'cash_page')
             ->withQueryString();
@@ -67,11 +77,13 @@ class RiderAccountController extends Controller
         $earningsAttempts = DeliveryAttempt::with('order')
             ->where('rider_id', $rider->id)
             ->where('earning_credited', true)
+            ->when($from && $to, fn ($q) => $q->whereBetween('delivered_at', [$from, $to]))
             ->latest('delivered_at')
             ->paginate(20, ['*'], 'earnings_page')
             ->withQueryString();
 
         $trips = RiderTrip::where('rider_id', $rider->id)
+            ->when($from && $to, fn ($q) => $q->whereBetween('checked_in_at', [$from, $to]))
             ->withCount([
                 'deliveryAttempts as orders_count',
                 'deliveryAttempts as delivered_count' => fn ($q) => $q->where('status', Order::DELIVERY_STATUS_DELIVERED),

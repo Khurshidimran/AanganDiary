@@ -58,8 +58,15 @@
                 @endforeach
             </select>
         </div>
+        <div class="col-md-3">
+            <label class="form-label small text-muted mb-1">Search</label>
+            <div class="input-group input-group-sm">
+                <input type="search" name="q" class="form-control" placeholder="Order #, customer, or phone" value="{{ request('q') }}">
+                <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>
+            </div>
+        </div>
         <div class="col-md-2">
-            @if ($isDefaultDateRange && ! request()->filled('order_status') && ! request()->filled('delivery_status') && ! request()->filled('channel_id'))
+            @if ($isDefaultDateRange && ! request()->filled('order_status') && ! request()->filled('delivery_status') && ! request()->filled('channel_id') && ! request()->filled('q'))
                 <span class="small text-muted">Showing this month by default</span>
             @else
                 <a href="{{ route('orders.index') }}" class="btn btn-sm btn-outline-secondary">Reset filters</a>

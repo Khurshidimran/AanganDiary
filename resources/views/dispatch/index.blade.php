@@ -104,6 +104,14 @@
                 </div>
             </div>
 
+            <div class="mb-3" id="order-search-box">
+                <input type="search" id="order-search-input" class="form-control form-control-sm"
+                       placeholder="Find an order by # or customer name...">
+                <div class="form-text small">
+                    Filters the list below only — independent of the date range above.
+                </div>
+            </div>
+
             @can('dispatch.manage')
                 <div class="card shadow-sm mb-3">
                     <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
@@ -142,7 +150,8 @@
                         $itemCount = $order->items->count();
                         $pickupLocation = $order->rider?->warehouse?->name ?? $defaultWarehouse?->name;
                     @endphp
-                    <div class="card shadow-sm order-card" data-status="{{ $bucket }}">
+                    <div class="card shadow-sm order-card" data-status="{{ $bucket }}"
+                         data-search="{{ strtolower(($order->shopify_order_number ?? $order->shopify_order_id).' '.($order->customer_name ?? '').' '.($order->customer_phone ?? '')) }}">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                                 <div class="fw-semibold d-flex align-items-center gap-2">
@@ -383,17 +392,30 @@
                 // (currentFilter) survives every action instead of resetting
                 // to "All" on each full-page reload.
                 let currentFilter = 'all';
+                let currentSearch = '';
                 const SWAP_IDS = ['status-summary', 'orders-heading', 'orders-list', 'riders-sidebar', 'flash-messages'];
 
                 function applyFilter(filter) {
                     currentFilter = filter;
-                    document.querySelectorAll('#orders-list .order-card').forEach((card) => {
-                        card.style.display = (filter === 'all' || card.dataset.status === filter) ? '' : 'none';
-                    });
+                    applyFilters();
                     document.querySelectorAll('#status-filter .filter-pill').forEach((btn) => {
                         const isActive = btn.dataset.filter === filter;
                         btn.classList.toggle('btn-dark', isActive);
                         btn.classList.toggle('btn-outline-secondary', !isActive);
+                    });
+                }
+
+                // Order-number/customer search is a separate, purely
+                // client-side filter — independent of both the status pills
+                // above and the server-side date range at the top of the
+                // page (it never re-queries, it just hides/shows whatever
+                // orders are already loaded for that date range).
+                function applyFilters() {
+                    const term = currentSearch.trim().toLowerCase();
+                    document.querySelectorAll('#orders-list .order-card').forEach((card) => {
+                        const matchesStatus = currentFilter === 'all' || card.dataset.status === currentFilter;
+                        const matchesSearch = term === '' || (card.dataset.search || '').includes(term);
+                        card.style.display = (matchesStatus && matchesSearch) ? '' : 'none';
                     });
                 }
 
@@ -473,6 +495,13 @@
                     const pill = e.target.closest('#status-filter .filter-pill');
                     if (pill) {
                         applyFilter(pill.dataset.filter);
+                    }
+                });
+
+                document.addEventListener('input', function (e) {
+                    if (e.target.id === 'order-search-input') {
+                        currentSearch = e.target.value;
+                        applyFilters();
                     }
                 });
 

@@ -48,16 +48,26 @@ class RiderSettlementService
     }
 
     /**
-     * Always current outstanding totals — never scoped to a date filter,
-     * per the page's own rule that financial balances represent "right now,"
-     * not "during the selected period."
+     * When $from/$to are both given, every figure is scoped to that window
+     * (transactions dated within it) rather than the rider's all-time
+     * ledger — select the "All Time" period on the page to see the true
+     * current outstanding balance; any narrower period shows that window's
+     * activity instead, which can legitimately differ from what's actually
+     * still owed (e.g. an old unsettled balance won't show under "Today").
      *
      * @return array{cod_collected: float, cash_deposited: float, cash_to_hand_in: float, earnings_earned: float, earnings_paid: float, earnings_payable: float, net_position: float}
      */
-    public function financials(RiderProfile $rider): array
+    public function financials(RiderProfile $rider, ?Carbon $from = null, ?Carbon $to = null): array
     {
-        $sum = fn (string $type) => (float) RiderWalletTransaction::where('rider_id', $rider->id)
-            ->where('transaction_type', $type)->sum('amount');
+        $sum = function (string $type) use ($rider, $from, $to) {
+            $query = RiderWalletTransaction::where('rider_id', $rider->id)->where('transaction_type', $type);
+
+            if ($from && $to) {
+                $query->whereRaw('COALESCE(transaction_date, DATE(created_at)) BETWEEN ? AND ?', [$from->toDateString(), $to->toDateString()]);
+            }
+
+            return (float) $query->sum('amount');
+        };
 
         $codCollected = $sum(RiderWalletTransaction::TYPE_COD_COLLECTED);
         // Stored as negative postings (they reduce the net balance) — flip
@@ -92,18 +102,24 @@ class RiderSettlementService
      * stored, purely a presentation computed fresh every time (financial
      * balances stay derived-only, never manually editable).
      *
+     * Scoped by the same $from/$to window as financials() when given, so the
+     * Earnings tab's rows and its "Earnings Payable" summary always agree
+     * (sum of unpaid charges shown == earnings_payable for that window).
+     *
      * @return Collection<string, array{status: string, paid_at: ?string}> keyed by delivery_attempt_id
      */
-    public function earningsPaymentStatus(RiderProfile $rider): Collection
+    public function earningsPaymentStatus(RiderProfile $rider, ?Carbon $from = null, ?Carbon $to = null): Collection
     {
         $attempts = DeliveryAttempt::where('rider_id', $rider->id)
             ->where('earning_credited', true)
             ->whereNotNull('delivered_at')
+            ->when($from && $to, fn ($q) => $q->whereBetween('delivered_at', [$from, $to]))
             ->orderBy('delivered_at')
             ->get();
 
         $payments = RiderWalletTransaction::where('rider_id', $rider->id)
             ->where('transaction_type', RiderWalletTransaction::TYPE_EARNING_PAID)
+            ->when($from && $to, fn ($q) => $q->whereRaw('COALESCE(transaction_date, DATE(created_at)) BETWEEN ? AND ?', [$from->toDateString(), $to->toDateString()]))
             ->orderByRaw('COALESCE(transaction_date, DATE(created_at))')
             ->get(['amount', 'transaction_date', 'created_at'])
             ->values();

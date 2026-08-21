@@ -41,9 +41,6 @@
             </div>
             <button type="submit" class="btn btn-sm btn-outline-secondary">Apply</button>
         </div>
-        <div class="ms-auto text-muted small align-self-center">
-            <i class="bi bi-info-circle"></i> Cash &amp; earnings balances below are always current — not scoped to this period.
-        </div>
     </form>
 
     @include('riders.account.partials._kpi-cards')
@@ -104,4 +101,63 @@
             @endpush
         @endif
     @endcan
+
+    @push('scripts')
+        <script>
+            (function () {
+                // The Orders tab's status pills, search box, and pagination
+                // all stay inside this one container — intercept clicks/
+                // submits on same-page links (pills, pagination) and fetch
+                // just this tab's fragment instead of reloading the whole
+                // page. Links to a different path (the "View" button, which
+                // opens the attempt-history drill-down) are left alone.
+                const tabOrders = document.getElementById('tab-orders');
+                if (!tabOrders) {
+                    return;
+                }
+
+                function loadFragment(url) {
+                    tabOrders.style.opacity = '0.5';
+
+                    fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}, credentials: 'same-origin'})
+                        .then((response) => {
+                            if (!response.ok) {
+                                throw new Error('Request failed');
+                            }
+
+                            return response.text();
+                        })
+                        .then((html) => {
+                            tabOrders.innerHTML = html;
+                            tabOrders.style.opacity = '';
+                            window.history.replaceState({}, '', url);
+                        })
+                        .catch(() => {
+                            window.location.href = url;
+                        });
+                }
+
+                tabOrders.addEventListener('click', function (e) {
+                    const link = e.target.closest('a');
+                    if (!link) {
+                        return;
+                    }
+
+                    const url = new URL(link.href, window.location.origin);
+                    if (url.pathname !== window.location.pathname) {
+                        return; // different page (e.g. "View") — navigate normally
+                    }
+
+                    e.preventDefault();
+                    loadFragment(link.href);
+                });
+
+                tabOrders.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    const params = new URLSearchParams(new FormData(e.target));
+                    loadFragment(window.location.pathname + '?' + params.toString());
+                });
+            })();
+        </script>
+    @endpush
 @endsection
