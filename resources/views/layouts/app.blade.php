@@ -30,11 +30,11 @@
                 {{ config('app.name') }}
             </a>
             <ul class="nav nav-pills flex-column gap-1">
-                <!-- <li class="nav-item">
+                <li class="nav-item">
                     <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                         <i class="bi bi-speedometer2 me-2"></i> Dashboard
                     </a>
-                </li> -->
+                </li>
                 @can('monitoring.view')
                     <li class="nav-item">
                         <a href="{{ route('monitoring.index') }}" class="nav-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}">
