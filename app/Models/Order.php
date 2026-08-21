@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'shopify_order_id', 'shopify_order_number', 'channel_id', 'shopify_source_name', 'customer_name', 'customer_email', 'customer_phone',
+    'shopify_order_id', 'shopify_order_number', 'channel_id', 'shopify_source_name', 'customer_id', 'customer_name', 'customer_email', 'customer_phone',
     'billing_address', 'shipping_address', 'order_status', 'payment_status', 'delivery_status',
     'currency', 'subtotal', 'discount_total', 'tax_total', 'shipping_total', 'total', 'total_outstanding', 'notes', 'shopify_created_at',
     'rider_id', 'route_sequence', 'assigned_at', 'scheduled_dispatch_at', 'rider_instructions',
@@ -75,6 +75,11 @@ class Order extends Model
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channel::class);
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     /**

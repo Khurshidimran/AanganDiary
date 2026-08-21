@@ -2,6 +2,10 @@
 
 @section('title', 'New Order')
 
+@push('styles')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css">
+@endpush
+
 @section('content')
     <h1 class="h4 mb-3">New Order</h1>
     <p class="text-muted small mb-3">For orders taken by phone, WhatsApp, or any channel other than Shopify. It's created as pending — confirm it from the order page when you're ready to allocate stock.</p>
@@ -37,7 +41,17 @@
                 </div>
 
                 <hr>
-                <h2 class="h6">Customer</h2>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h6 mb-0">Customer</h2>
+                    <button type="button" id="new-customer-btn" class="btn btn-sm btn-link d-none">+ New Customer</button>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="customer_search" class="form-label">Find Existing Customer</label>
+                        <select id="customer_search" placeholder="Search by name or phone number..."></select>
+                        <div class="form-text">Can't find them? Just fill in the fields below for a new customer.</div>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col-md-4 mb-3">
                         <label for="customer_name" class="form-label">Name</label>
@@ -58,32 +72,47 @@
                         @error('customer_email') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
+                <input type="hidden" id="customer_id" name="customer_id" value="{{ old('customer_id') }}">
 
                 <h2 class="h6">Delivery Address</h2>
-                <div class="row">
+                <div class="row d-none" id="address-select-wrapper">
                     <div class="col-md-6 mb-3">
-                        <label for="address1" class="form-label">Address Line 1</label>
-                        <input id="address1" type="text" name="address1" value="{{ old('address1') }}"
-                               class="form-control @error('address1') is-invalid @enderror" required>
-                        @error('address1') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="address2" class="form-label">Address Line 2 (optional)</label>
-                        <input id="address2" type="text" name="address2" value="{{ old('address2') }}" class="form-control">
+                        <label for="customer_address_select" class="form-label">Saved Addresses</label>
+                        <select id="customer_address_select" class="form-select"></select>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="city" class="form-label">City</label>
-                        <input id="city" type="text" name="city" value="{{ old('city') }}"
-                               class="form-control @error('city') is-invalid @enderror" required>
-                        @error('city') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                <input type="hidden" id="customer_address_id" name="customer_address_id" value="{{ old('customer_address_id') }}">
+
+                <div id="new-address-fields">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="address1" class="form-label">Address Line 1</label>
+                            <input id="address1" type="text" name="address1" value="{{ old('address1') }}"
+                                   class="form-control @error('address1') is-invalid @enderror" required>
+                            @error('address1') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="address2" class="form-label">Address Line 2 (optional)</label>
+                            <input id="address2" type="text" name="address2" value="{{ old('address2') }}" class="form-control">
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="country" class="form-label">Country</label>
-                        <input id="country" type="text" name="country" value="{{ old('country', 'Pakistan') }}"
-                               class="form-control @error('country') is-invalid @enderror" required>
-                        @error('country') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="city" class="form-label">City</label>
+                            <select id="city" name="city" class="form-select @error('city') is-invalid @enderror" required>
+                                <option value="">Select a city</option>
+                                @foreach (['Lahore'] as $cityOption)
+                                    <option value="{{ $cityOption }}" @selected(old('city') === $cityOption)>{{ $cityOption }}</option>
+                                @endforeach
+                            </select>
+                            @error('city') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="country" class="form-label">Country</label>
+                            <input id="country" type="text" name="country" value="{{ old('country', 'Pakistan') }}"
+                                   class="form-control @error('country') is-invalid @enderror" required>
+                            @error('country') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
                     </div>
                 </div>
 
@@ -148,11 +177,16 @@
     </div>
 
     @push('scripts')
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
         <script>
             (function () {
                 let counter = 1;
                 const container = document.getElementById('items-container');
                 const template = document.getElementById('item-row-template');
+                const newAddressFields = document.getElementById('new-address-fields');
+                const addressSelectWrapper = document.getElementById('address-select-wrapper');
+                const addressSelect = document.getElementById('customer_address_select');
+                const addressRequiredInputs = ['address1', 'city', 'country'].map((id) => document.getElementById(id));
 
                 function money(value) {
                     return (Math.round((value + Number.EPSILON) * 100) / 100).toFixed(2);
@@ -178,11 +212,37 @@
                     document.getElementById('summary-total').textContent = money(total);
                 }
 
+                // ---- Product picker: searchable (Tom-Select, local/instant-filter
+                // mode — only ~50 variants, no need for a server round-trip) and
+                // always syncs Unit Price to whatever's currently selected. ----
+                function initVariantSelect(selectEl) {
+                    const ts = new TomSelect(selectEl, {maxOptions: null});
+
+                    ts.on('change', function (value) {
+                        const row = selectEl.closest('.item-row');
+                        const priceInput = row.querySelector('.item-unit-price-input');
+                        const option = selectEl.querySelector(`option[value="${value}"]`);
+                        const price = option?.dataset.salePrice;
+
+                        if (price) {
+                            priceInput.value = price;
+                        }
+
+                        recalcTotals();
+                    });
+
+                    return ts;
+                }
+
+                initVariantSelect(container.querySelector('.item-variant-select'));
+
                 document.getElementById('add-item-row').addEventListener('click', function () {
                     const html = template.innerHTML.replaceAll('__INDEX__', counter++);
                     const wrapper = document.createElement('div');
                     wrapper.innerHTML = html.trim();
-                    container.appendChild(wrapper.firstElementChild);
+                    const row = wrapper.firstElementChild;
+                    container.appendChild(row);
+                    initVariantSelect(row.querySelector('.item-variant-select'));
                     recalcTotals();
                 });
 
@@ -196,28 +256,118 @@
                         return;
                     }
 
-                    button.closest('.item-row').remove();
-                    recalcTotals();
-                });
-
-                // Auto-fill unit price from the variant's sale price when first selected.
-                container.addEventListener('change', function (event) {
-                    if (event.target.classList.contains('item-variant-select')) {
-                        const row = event.target.closest('.item-row');
-                        const priceInput = row.querySelector('.item-unit-price-input');
-
-                        if (!priceInput.value) {
-                            const price = event.target.options[event.target.selectedIndex]?.dataset.salePrice;
-                            if (price) priceInput.value = price;
-                        }
-                    }
-
+                    const row = button.closest('.item-row');
+                    row.querySelector('.item-variant-select')?.tomselect?.destroy();
+                    row.remove();
                     recalcTotals();
                 });
 
                 container.addEventListener('input', recalcTotals);
                 ['discount_total', 'shipping_total', 'tax_total'].forEach((id) => {
                     document.getElementById(id).addEventListener('input', recalcTotals);
+                });
+
+                // ---- Delivery address: shown as a saved-addresses picker once an
+                // existing customer with at least one address is selected, or as a
+                // plain new-address form otherwise (fresh customer, or "+ Add a new
+                // address" chosen). required attributes toggle with visibility so a
+                // hidden field never silently blocks submission. ----
+                function showNewAddressFields() {
+                    newAddressFields.classList.remove('d-none');
+                    addressRequiredInputs.forEach((el) => el.setAttribute('required', 'required'));
+                }
+
+                function hideNewAddressFields() {
+                    newAddressFields.classList.add('d-none');
+                    addressRequiredInputs.forEach((el) => el.removeAttribute('required'));
+                }
+
+                function populateAddressSelect(addresses) {
+                    addressSelect.innerHTML = '';
+
+                    if (!addresses || addresses.length === 0) {
+                        addressSelectWrapper.classList.add('d-none');
+                        document.getElementById('customer_address_id').value = '';
+                        showNewAddressFields();
+                        return;
+                    }
+
+                    addresses.forEach((address) => {
+                        const option = document.createElement('option');
+                        option.value = address.id;
+                        option.textContent = address.label + (address.is_default ? ' (default)' : '');
+                        addressSelect.appendChild(option);
+                    });
+
+                    const addNewOption = document.createElement('option');
+                    addNewOption.value = '';
+                    addNewOption.textContent = '+ Add a new address';
+                    addressSelect.appendChild(addNewOption);
+
+                    const defaultAddress = addresses.find((a) => a.is_default) || addresses[0];
+                    addressSelect.value = defaultAddress.id;
+                    document.getElementById('customer_address_id').value = defaultAddress.id;
+
+                    addressSelectWrapper.classList.remove('d-none');
+                    hideNewAddressFields();
+                }
+
+                addressSelect.addEventListener('change', function () {
+                    if (this.value) {
+                        document.getElementById('customer_address_id').value = this.value;
+                        hideNewAddressFields();
+                    } else {
+                        document.getElementById('customer_address_id').value = '';
+                        showNewAddressFields();
+                    }
+                });
+
+                // ---- Customer search: searchable (Tom-Select, remote mode — calls
+                // customers.search) by name or phone. Selecting a result fills
+                // Name/Phone/Email (still editable, e.g. to correct a typo) and
+                // the address picker above. ----
+                const customerSearch = new TomSelect('#customer_search', {
+                    valueField: 'value',
+                    labelField: 'text',
+                    searchField: ['text'],
+                    load: function (query, callback) {
+                        if (!query.length) {
+                            callback();
+                            return;
+                        }
+
+                        fetch(`{{ route('customers.search') }}?q=${encodeURIComponent(query)}`, {
+                            headers: {'X-Requested-With': 'XMLHttpRequest'},
+                        })
+                            .then((response) => response.json())
+                            .then((json) => callback(json))
+                            .catch(() => callback());
+                    },
+                });
+
+                customerSearch.on('change', function (value) {
+                    if (!value) return;
+
+                    const data = this.options[value];
+                    if (!data) return;
+
+                    document.getElementById('customer_id').value = data.value;
+                    document.getElementById('customer_name').value = data.name;
+                    document.getElementById('customer_phone').value = data.phone;
+                    document.getElementById('customer_email').value = data.email || '';
+                    document.getElementById('new-customer-btn').classList.remove('d-none');
+
+                    populateAddressSelect(data.addresses);
+                });
+
+                document.getElementById('new-customer-btn').addEventListener('click', function () {
+                    customerSearch.clear();
+                    document.getElementById('customer_id').value = '';
+                    document.getElementById('customer_name').value = '';
+                    document.getElementById('customer_phone').value = '';
+                    document.getElementById('customer_email').value = '';
+                    this.classList.add('d-none');
+                    populateAddressSelect([]);
                 });
 
                 recalcTotals();

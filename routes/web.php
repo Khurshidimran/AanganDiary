@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountMappingController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChannelController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DispatchController;
 use App\Http\Controllers\EmployeeAdvanceController;
@@ -78,6 +79,8 @@ Route::middleware('auth')->group(function () {
     // Registered before the orders resource so this literal path takes
     // priority over the resource's GET orders/{order} wildcard match.
     Route::get('orders/print-labels', [OrderController::class, 'bulkLabels'])->name('orders.labels.bulk');
+
+    Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');
 
     Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('orders/{order}/label', [OrderController::class, 'label'])->name('orders.label');

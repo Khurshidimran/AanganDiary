@@ -7,6 +7,8 @@ use App\Exceptions\WarehouseNotConfiguredException;
 use App\Exports\OrdersExport;
 use App\Http\Requests\StoreOrderRequest;
 use App\Models\Channel;
+use App\Models\Customer;
+use App\Models\CustomerAddress;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\RiderProfile;
@@ -88,12 +90,37 @@ class OrderController extends Controller
             $shippingTotal = (float) ($validated['shipping_total'] ?? 0);
             $total = $subtotal - $discountTotal + $taxTotal + $shippingTotal;
 
+            $customer = ! empty($validated['customer_id'])
+                ? Customer::findOrFail($validated['customer_id'])
+                : new Customer();
+
+            // Kept in sync with whatever staff just confirmed/edited on
+            // screen even when reusing an existing customer — the order
+            // form is the source of truth for "who this order is for right
+            // now," same as a fresh Customer's fields.
+            $customer->fill([
+                'name' => $validated['customer_name'],
+                'phone' => $validated['customer_phone'],
+                'email' => $validated['customer_email'] ?? null,
+            ])->save();
+
+            $customerAddress = ! empty($validated['customer_address_id'])
+                ? CustomerAddress::findOrFail($validated['customer_address_id'])
+                : $customer->addresses()->create([
+                    'address1' => $validated['address1'],
+                    'address2' => $validated['address2'] ?? null,
+                    'city' => $validated['city'],
+                    'country' => $validated['country'],
+                    'phone' => $validated['customer_phone'],
+                    'is_default' => $customer->addresses()->count() === 0,
+                ]);
+
             $address = [
                 'name' => $validated['customer_name'],
-                'address1' => $validated['address1'],
-                'address2' => $validated['address2'] ?? null,
-                'city' => $validated['city'],
-                'country' => $validated['country'],
+                'address1' => $customerAddress->address1,
+                'address2' => $customerAddress->address2,
+                'city' => $customerAddress->city,
+                'country' => $customerAddress->country,
                 'phone' => $validated['customer_phone'],
             ];
 
@@ -101,6 +128,7 @@ class OrderController extends Controller
                 'shopify_order_id' => 'local-'.Str::uuid(),
                 'shopify_order_number' => $this->nextLocalOrderNumber(),
                 'channel_id' => $validated['channel_id'],
+                'customer_id' => $customer->id,
                 'customer_name' => $validated['customer_name'],
                 'customer_email' => $validated['customer_email'] ?? null,
                 'customer_phone' => $validated['customer_phone'],
