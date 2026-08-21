@@ -4,11 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\RiderProfile;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class MonitoringController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('monitoring.view');
 
@@ -69,9 +70,19 @@ class MonitoringController extends Controller
 
         $codOutstandingTotal = $codOutstanding->sum('wallet_balance');
 
-        return view('monitoring.index', compact(
+        $data = compact(
             'stats', 'recentOrders', 'cancelledOrders', 'codOutstanding', 'codOutstandingTotal',
             'scheduledToday', 'outForDelivery', 'deliveredToday',
-        ));
+        );
+
+        // The page polls this same route every 30s via fetch() to refresh
+        // just the stats/tables in place — returning only that fragment
+        // here avoids re-rendering (and re-sending) the full page shell on
+        // every tick.
+        if ($request->ajax()) {
+            return view('monitoring._content', $data);
+        }
+
+        return view('monitoring.index', $data);
     }
 }
