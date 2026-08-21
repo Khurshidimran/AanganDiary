@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountMappingController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChannelController;
+use App\Http\Controllers\CustomerAddressController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DispatchController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OrderPaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseReceiptController;
@@ -81,6 +83,10 @@ Route::middleware('auth')->group(function () {
     Route::get('orders/print-labels', [OrderController::class, 'bulkLabels'])->name('orders.labels.bulk');
 
     Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');
+    Route::resource('customers', CustomerController::class)->except(['show']);
+    Route::post('customers/{customer}/addresses', [CustomerAddressController::class, 'store'])->name('customers.addresses.store');
+    Route::put('customers/{customer}/addresses/{address}', [CustomerAddressController::class, 'update'])->name('customers.addresses.update');
+    Route::delete('customers/{customer}/addresses/{address}', [CustomerAddressController::class, 'destroy'])->name('customers.addresses.destroy');
 
     Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('orders/{order}/label', [OrderController::class, 'label'])->name('orders.label');
@@ -88,6 +94,7 @@ Route::middleware('auth')->group(function () {
     Route::get('orders/export/excel', [OrderController::class, 'exportExcel'])->name('orders.export.excel');
     Route::post('orders/{order}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm');
     Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+    Route::post('orders/{order}/payments', [OrderPaymentController::class, 'store'])->name('orders.payments.store');
 
     Route::get('shopify', [ShopifyController::class, 'index'])->name('shopify.index');
     Route::post('shopify/sync-products', [ShopifyController::class, 'syncProducts'])->name('shopify.sync-products');

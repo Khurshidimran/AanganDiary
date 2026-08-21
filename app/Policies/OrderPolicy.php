@@ -31,4 +31,9 @@ class OrderPolicy
     {
         return $user->can('orders.edit') && $order->canBeCancelled();
     }
+
+    public function recordPayment(User $user, Order $order): bool
+    {
+        return $user->can('orders.record-payment') && $order->payment_type === Order::PAYMENT_TYPE_CREDIT;
+    }
 }

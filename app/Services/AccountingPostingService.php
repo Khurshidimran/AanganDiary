@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Expense;
 use App\Models\JournalEntry;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\PayrollAdjustment;
 use App\Models\PayrollRun;
 use App\Models\PurchaseReceipt;
@@ -43,7 +44,13 @@ class AccountingPostingService
             return null;
         }
 
-        $debitAccount = $order->payment_status === Order::PAYMENT_STATUS_PAID ? $cashAccount : $receivableAccount;
+        // A customer with their own linked ledger account (an optional,
+        // per-customer setting — see Customer::account()) debits that
+        // account instead of the shared pooled Receivable account; everyone
+        // else nets through the shared one, same as before.
+        $debitAccount = $order->payment_status === Order::PAYMENT_STATUS_PAID
+            ? $cashAccount
+            : ($order->customer?->account ?? $receivableAccount);
 
         $taxTotal = (float) $order->tax_total;
         $revenueAmount = (float) $order->total - $taxTotal;
@@ -153,6 +160,39 @@ class AccountingPostingService
             amount: (float) $payment->amount,
             narration: "Vendor payment — {$payment->vendor->name}",
             referenceType: 'vendor_payments',
+            referenceId: $payment->id,
+            source: JournalEntry::SOURCE_SYSTEM,
+        );
+    }
+
+    /**
+     * Mirrors postVendorPaymentEntry() for the customer side: debits Cash/
+     * Bank (money received) and credits whichever account the sale itself
+     * was booked against — the customer's own linked account if set, else
+     * the shared pooled Receivable account — so the same account that was
+     * debited at sale time is the one credited down as payments come in.
+     */
+    public function postCustomerPaymentEntry(OrderPayment $payment): ?JournalEntry
+    {
+        if ((float) $payment->amount <= 0 || $this->journal->hasPostedEntryFor('order_payments', $payment->id)) {
+            return null;
+        }
+
+        $receivableAccount = $payment->order->customer?->account ?? $this->mapping->receivableAccount();
+        $cashOrBank = $this->cashOrBankFor($payment->method);
+
+        if (! $receivableAccount || ! $cashOrBank) {
+            return null;
+        }
+
+        return $this->journal->postSimple(
+            type: JournalEntry::TYPE_JOURNAL,
+            entryDate: $payment->payment_date,
+            debitAccount: $cashOrBank,
+            creditAccount: $receivableAccount,
+            amount: (float) $payment->amount,
+            narration: "Customer payment — Order #{$payment->order->shopify_order_number}",
+            referenceType: 'order_payments',
             referenceId: $payment->id,
             source: JournalEntry::SOURCE_SYSTEM,
         );

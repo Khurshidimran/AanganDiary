@@ -38,6 +38,15 @@
                         </select>
                         @error('payment_status') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="payment_type" class="form-label">Payment Type</label>
+                        <select id="payment_type" name="payment_type" class="form-select @error('payment_type') is-invalid @enderror">
+                            <option value="cash" @selected(old('payment_type', 'cash') === 'cash')>Cash / COD</option>
+                            <option value="credit" @selected(old('payment_type') === 'credit')>Credit (pay later)</option>
+                        </select>
+                        <div class="form-text">Credit orders appear on the Receivables Aging report until fully paid.</div>
+                        @error('payment_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
                 </div>
 
                 <hr>
@@ -330,6 +339,18 @@
                     valueField: 'value',
                     labelField: 'text',
                     searchField: ['text'],
+                    // The server (customers.search) already filters by name
+                    // OR phone — without this, Tom-Select's own local fuzzy
+                    // scoring re-filters whatever load() returns against the
+                    // typed query, and can silently hide a real match (e.g.
+                    // a name search scored poorly against the combined
+                    // "Name — Phone" display text). Trust the server's
+                    // results as-is instead of re-filtering them client-side.
+                    score: function () {
+                        return function () {
+                            return 1;
+                        };
+                    },
                     load: function (query, callback) {
                         if (!query.length) {
                             callback();

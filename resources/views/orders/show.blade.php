@@ -18,6 +18,9 @@
                     'refunded' => 'bg-danger',
                     default => 'bg-secondary',
                 } }}">Payment: {{ str($order->payment_status)->headline() }}</span>
+                @if ($order->payment_type === 'credit')
+                    <span class="badge bg-warning text-dark">Credit</span>
+                @endif
                 <span class="badge bg-secondary">Delivery: {{ str($order->delivery_status)->headline() }}</span>
             </div>
         </div>
@@ -34,6 +37,13 @@
                     @csrf
                     <button type="submit" class="btn btn-outline-danger btn-sm">Cancel Order</button>
                 </form>
+            @endcan
+            @can('recordPayment', $order)
+                @if ($order->total_outstanding > 0)
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-record-payment">
+                        <i class="bi bi-cash-coin"></i> Record Payment
+                    </button>
+                @endif
             @endcan
         </div>
     </div>
@@ -203,6 +213,45 @@
         </div>
     </div>
 
+    @if ($order->payment_type === 'credit')
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Payments</span>
+                <span class="badge {{ $order->total_outstanding > 0 ? 'bg-warning text-dark' : 'bg-success' }}">
+                    Outstanding: {{ $order->currency }} {{ number_format($order->total_outstanding, 2) }}
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th class="text-end">Amount</th>
+                            <th>Method</th>
+                            <th>Reference</th>
+                            <th>Recorded By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($order->payments as $payment)
+                            <tr>
+                                <td>{{ $payment->payment_date->format('Y-m-d') }}</td>
+                                <td class="text-end text-success">+{{ number_format($payment->amount, 2) }}</td>
+                                <td>{{ str($payment->method)->headline() }}</td>
+                                <td>{{ $payment->reference_number ?? '—' }}</td>
+                                <td>{{ $payment->createdBy?->name ?? '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No payments recorded yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     </div>
     <div class="col-lg-4">
         <div class="card shadow-sm" style="position: sticky; top: 1rem;">
@@ -227,4 +276,81 @@
         </div>
     </div>
     </div>
+
+    @can('recordPayment', $order)
+        @if ($order->total_outstanding > 0)
+            <div class="modal fade" id="modal-record-payment" tabindex="-1">
+                <div class="modal-dialog">
+                    <form method="POST" action="{{ route('orders.payments.store', $order) }}" class="modal-content">
+                        @csrf
+                        <div class="modal-header">
+                            <h5 class="modal-title">Record Payment</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="d-flex justify-content-between small text-muted mb-3 pb-2 border-bottom">
+                                <span>Current Outstanding Balance</span>
+                                <span class="fw-semibold text-dark">{{ $order->currency }} {{ number_format($order->total_outstanding, 2) }}</span>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small">Payment Amount *</label>
+                                <input type="number" step="0.01" min="0.01" max="{{ $order->total_outstanding }}"
+                                       name="amount" id="payment-amount" class="form-control @error('amount') is-invalid @enderror"
+                                       value="{{ old('amount') }}" required>
+                                @error('amount') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Payment Date *</label>
+                                <input type="date" name="payment_date" class="form-control @error('payment_date') is-invalid @enderror"
+                                       value="{{ old('payment_date', now()->format('Y-m-d')) }}" max="{{ now()->format('Y-m-d') }}" required>
+                                @error('payment_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Payment Method *</label>
+                                <select name="method" class="form-select @error('method') is-invalid @enderror" required>
+                                    <option value="cash" @selected(old('method', 'cash') === 'cash')>Cash</option>
+                                    <option value="bank_transfer" @selected(old('method') === 'bank_transfer')>Bank Transfer</option>
+                                    <option value="other" @selected(old('method') === 'other')>Other</option>
+                                </select>
+                                @error('method') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Reference #</label>
+                                <input type="text" name="reference_number" class="form-control" value="{{ old('reference_number') }}">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Notes</label>
+                                <textarea name="notes" class="form-control" rows="2">{{ old('notes') }}</textarea>
+                            </div>
+
+                            <div class="d-flex justify-content-between small border-top pt-2 mt-3">
+                                <span>Remaining Balance</span>
+                                <span class="fw-semibold" id="payment-remaining">{{ $order->currency }} {{ number_format($order->total_outstanding, 2) }}</span>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Confirm Payment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            @push('scripts')
+                <script>
+                    (function () {
+                        var outstanding = {{ (float) $order->total_outstanding }};
+                        var amountInput = document.getElementById('payment-amount');
+                        var remainingEl = document.getElementById('payment-remaining');
+
+                        amountInput?.addEventListener('input', function () {
+                            var amt = parseFloat(this.value) || 0;
+                            remainingEl.textContent = '{{ $order->currency }} ' + (outstanding - amt).toFixed(2);
+                        });
+                    })();
+                </script>
+            @endpush
+        @endif
+    @endcan
 @endsection

@@ -136,6 +136,7 @@ class OrderController extends Controller
                 'shipping_address' => $address,
                 'order_status' => Order::ORDER_STATUS_PENDING,
                 'payment_status' => $validated['payment_status'],
+                'payment_type' => $validated['payment_type'],
                 'delivery_status' => Order::DELIVERY_STATUS_PENDING,
                 'currency' => 'PKR',
                 'subtotal' => $subtotal,
@@ -250,7 +251,7 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load('items.productVariant.unit', 'channel', 'auditLogs');
+        $order->load('items.productVariant.unit', 'channel', 'auditLogs', 'payments.createdBy');
 
         return view('orders.show', compact('order'));
     }

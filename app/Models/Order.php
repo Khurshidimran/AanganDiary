@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'shopify_order_id', 'shopify_order_number', 'channel_id', 'shopify_source_name', 'customer_id', 'customer_name', 'customer_email', 'customer_phone',
-    'billing_address', 'shipping_address', 'order_status', 'payment_status', 'delivery_status',
+    'billing_address', 'shipping_address', 'order_status', 'payment_status', 'payment_type', 'delivery_status',
     'currency', 'subtotal', 'discount_total', 'tax_total', 'shipping_total', 'total', 'total_outstanding', 'notes', 'shopify_created_at',
     'rider_id', 'route_sequence', 'assigned_at', 'scheduled_dispatch_at', 'rider_instructions',
     'picked_up_at', 'delivered_at', 'cod_amount', 'cod_collected',
@@ -30,6 +30,9 @@ class Order extends Model
     public const PAYMENT_STATUS_PAID = 'paid';
     public const PAYMENT_STATUS_PARTIALLY_PAID = 'partially_paid';
     public const PAYMENT_STATUS_REFUNDED = 'refunded';
+
+    public const PAYMENT_TYPE_CASH = 'cash';
+    public const PAYMENT_TYPE_CREDIT = 'credit';
 
     public const DELIVERY_STATUS_PENDING = 'pending';
     public const DELIVERY_STATUS_ASSIGNED = 'assigned';
@@ -80,6 +83,11 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(OrderPayment::class);
     }
 
     /**

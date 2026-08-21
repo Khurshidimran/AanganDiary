@@ -139,6 +139,11 @@ class ShopifyOrderSyncService
             } elseif ($isNew) {
                 $order->order_status = Order::ORDER_STATUS_PENDING;
                 $order->delivery_status = Order::DELIVERY_STATUS_PENDING;
+                // Shopify orders are always prepaid-at-checkout or COD-on-
+                // delivery in this business — never "buy now, pay the store
+                // later" credit terms, so they're never a Receivables Aging
+                // candidate.
+                $order->payment_type = Order::PAYMENT_TYPE_CASH;
             }
 
             $order->save();

@@ -135,12 +135,19 @@ class AccountingReportController extends Controller
 
         $asOf = Carbon::parse($request->input('as_of', now()->toDateString()));
 
+        // Only credit-terms orders are ever a receivable in the first place —
+        // a cash/COD order's total_outstanding is just "not collected on
+        // delivery yet," not money owed on payment terms. Legacy orders
+        // (payment_type defaults to 'cash') correctly stop appearing here as
+        // a result, since none of them were ever actually credit sales.
         $orders = Order::where('order_status', '!=', Order::ORDER_STATUS_CANCELLED)
+            ->where('payment_type', Order::PAYMENT_TYPE_CREDIT)
             ->where('total_outstanding', '>', 0)
+            ->with('customer')
             ->get();
 
-        $rows = $orders->groupBy(fn (Order $o) => $o->customer_email ?: $o->customer_name ?: 'Unknown')
-            ->map(function ($group, $customer) use ($asOf) {
+        $rows = $orders->groupBy(fn (Order $o) => $o->customer_id ?? ($o->customer_email ?: $o->customer_name ?: 'Unknown'))
+            ->map(function ($group) use ($asOf) {
                 $buckets = ['current' => 0.0, 'days_31_60' => 0.0, 'days_61_90' => 0.0, 'over_90' => 0.0];
 
                 foreach ($group as $order) {
@@ -148,8 +155,17 @@ class AccountingReportController extends Controller
                     $buckets[$this->bucketFor($age)] += (float) $order->total_outstanding;
                 }
 
+                // Prefer the linked Customer's name (real FK, dedupes
+                // correctly across orders) — only orders predating the
+                // Customer feature fall back to the raw email/name string.
+                $firstOrder = $group->first();
+                $customerName = $firstOrder->customer?->name
+                    ?? $firstOrder->customer_email
+                    ?? $firstOrder->customer_name
+                    ?? 'Unknown';
+
                 return [
-                    'customer' => $customer,
+                    'customer' => $customerName,
                     'orders' => $group->count(),
                     ...$buckets,
                     'total' => array_sum($buckets),

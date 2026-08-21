@@ -5,13 +5,25 @@ namespace App\Models;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['name', 'phone', 'email', 'notes'])]
+#[Fillable(['account_id', 'name', 'phone', 'email', 'notes'])]
 class Customer extends Model
 {
     use HasUuid, SoftDeletes;
+
+    /**
+     * Optional — most customers leave this unset and net through the shared
+     * Accounts Receivable account (mirrors how vendors default to the shared
+     * Accounts Payable account). Only set for specific credit/wholesale
+     * customers who need their own distinct ledger line.
+     */
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
 
     public function addresses(): HasMany
     {
