@@ -34,6 +34,12 @@ class RiderAccountController extends Controller
         [$from, $to, $preset] = $this->resolveDateRange($request);
 
         $attempts = DeliveryAttempt::with('order')
+            // Guards against a delivery-attempt row left behind by an order
+            // that no longer exists (e.g. deleted directly in the database,
+            // outside the app — there's no order-delete feature in the UI) —
+            // without this, rendering the order's number/name below would
+            // crash on a null relation instead of just omitting that row.
+            ->whereHas('order')
             ->where('rider_id', $rider->id)
             ->when($from && $to, fn ($q) => $q->whereBetween('assigned_at', [$from, $to]))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
@@ -75,6 +81,7 @@ class RiderAccountController extends Controller
             ->pluck('shopify_order_number', 'id');
 
         $earningsAttempts = DeliveryAttempt::with('order')
+            ->whereHas('order')
             ->where('rider_id', $rider->id)
             ->where('earning_credited', true)
             ->when($from && $to, fn ($q) => $q->whereBetween('delivered_at', [$from, $to]))
@@ -116,7 +123,7 @@ class RiderAccountController extends Controller
     {
         $this->authorize('view', $rider);
 
-        $attempts = $trip->deliveryAttempts()->with('order')->orderBy('assigned_at')->get();
+        $attempts = $trip->deliveryAttempts()->with('order')->whereHas('order')->orderBy('assigned_at')->get();
 
         return view('riders.account.trip-detail', compact('rider', 'trip', 'attempts'));
     }

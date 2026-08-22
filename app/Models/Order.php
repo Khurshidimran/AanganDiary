@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'rider_id', 'route_sequence', 'assigned_at', 'scheduled_dispatch_at', 'rider_instructions',
     'picked_up_at', 'delivered_at', 'cod_amount', 'cod_collected',
     'delivery_failure_reason', 'return_reason', 'cancellation_reason', 'pod_photo_path', 'pod_signature_path', 'pod_captured_at',
+    'deleted_by',
 ])]
 class Order extends Model
 {
@@ -83,6 +84,11 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function deletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     public function payments(): HasMany
@@ -157,6 +163,23 @@ class Order extends Model
     public function canBeCancelled(): bool
     {
         return in_array($this->order_status, [self::ORDER_STATUS_PENDING, self::ORDER_STATUS_CONFIRMED], true);
+    }
+
+    /**
+     * Deleting is an admin-only cleanup action for orders that shouldn't
+     * exist (duplicates, test orders, mistakes) — not a normal business
+     * outcome, which is what Cancel is for. Blocked while a rider physically
+     * has the parcel (assigned/picked_up/out_for_delivery): deleting it out
+     * from under an active delivery would make the order vanish from the
+     * rider's app mid-run with no trace of what happened to it.
+     */
+    public function canBeDeleted(): bool
+    {
+        return ! in_array($this->delivery_status, [
+            self::DELIVERY_STATUS_ASSIGNED,
+            self::DELIVERY_STATUS_PICKED_UP,
+            self::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+        ], true);
     }
 
     public function canBeAssigned(): bool

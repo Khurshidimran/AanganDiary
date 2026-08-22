@@ -88,7 +88,7 @@ Route::middleware('auth')->group(function () {
     Route::put('customers/{customer}/addresses/{address}', [CustomerAddressController::class, 'update'])->name('customers.addresses.update');
     Route::delete('customers/{customer}/addresses/{address}', [CustomerAddressController::class, 'destroy'])->name('customers.addresses.destroy');
 
-    Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show']);
+    Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::get('orders/{order}/label', [OrderController::class, 'label'])->name('orders.label');
     Route::get('orders/export/pdf', [OrderController::class, 'exportPdf'])->name('orders.export.pdf');
     Route::get('orders/export/excel', [OrderController::class, 'exportExcel'])->name('orders.export.excel');

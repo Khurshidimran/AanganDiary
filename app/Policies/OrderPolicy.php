@@ -36,4 +36,9 @@ class OrderPolicy
     {
         return $user->can('orders.record-payment') && $order->payment_type === Order::PAYMENT_TYPE_CREDIT;
     }
+
+    public function delete(User $user, Order $order): bool
+    {
+        return $user->can('orders.delete') && $order->canBeDeleted();
+    }
 }

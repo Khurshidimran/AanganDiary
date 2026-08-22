@@ -353,4 +353,46 @@ class OrderController extends Controller
 
         return back()->with('status', 'Order cancelled — locally and in Shopify.');
     }
+
+    /**
+     * Admin-only cleanup for an order that shouldn't exist at all (a
+     * duplicate, a test order, a mistake) — distinct from Cancel, which is
+     * the normal business outcome and keeps the order visible with a reason.
+     * This soft-deletes it (recoverable directly in the database if truly
+     * needed) and records who did it via deleted_by, since an order simply
+     * disappearing with no trail is exactly the kind of thing that caused
+     * confusion before this feature existed.
+     */
+    public function destroy(Request $request, Order $order): RedirectResponse
+    {
+        $this->authorize('delete', $order);
+
+        if (! $order->canBeDeleted()) {
+            return back()->with('error', 'This order cannot be deleted while a rider has it out for delivery.');
+        }
+
+        $wasConfirmed = $order->order_status === Order::ORDER_STATUS_CONFIRMED;
+        $orderNumber = $order->shopify_order_number ?? $order->shopify_order_id;
+
+        try {
+            DB::transaction(function () use ($order, $wasConfirmed, $request) {
+                if ($wasConfirmed) {
+                    $this->fulfillment->releaseStock($order);
+                }
+
+                $order->update(['deleted_by' => $request->user()->id]);
+                $order->delete();
+            });
+        } catch (WarehouseNotConfiguredException $e) {
+            return back()->with('error', "Cannot delete order: {$e->getMessage()}");
+        }
+
+        if ($wasConfirmed) {
+            $this->accounting->voidSalesEntry($order, 'Order deleted');
+        }
+
+        $this->auditLog->log('deleted', 'orders', $order, null, ['deleted_by' => $request->user()->name]);
+
+        return redirect()->route('orders.index')->with('status', "Order {$orderNumber} deleted.");
+    }
 }

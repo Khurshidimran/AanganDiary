@@ -43,6 +43,11 @@
                     </button>
                 @endif
             @endcan
+            @can('delete', $order)
+                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modal-delete-order">
+                    <i class="bi bi-trash"></i> Delete Order
+                </button>
+            @endcan
         </div>
     </div>
 
@@ -292,6 +297,28 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Back</button>
                         <button type="submit" class="btn btn-danger">Confirm Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endcan
+
+    @can('delete', $order)
+        <div class="modal fade" id="modal-delete-order" tabindex="-1">
+            <div class="modal-dialog">
+                <form method="POST" action="{{ route('orders.destroy', $order) }}" class="modal-content">
+                    @csrf
+                    @method('DELETE')
+                    <div class="modal-header">
+                        <h5 class="modal-title">Delete Order</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0">This permanently removes <strong>{{ $order->shopify_order_number ?? $order->shopify_order_id }}</strong> from the system. Use this only for duplicates, test orders, or mistakes — for a real cancelled order, use Cancel Order instead.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Back</button>
+                        <button type="submit" class="btn btn-danger">Confirm Delete</button>
                     </div>
                 </form>
             </div>
