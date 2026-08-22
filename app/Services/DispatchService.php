@@ -298,12 +298,21 @@ class DispatchService
         });
     }
 
-    public function markFailed(Order $order, ?string $reason): void
+    public function markFailed(Order $order, ?string $reason, ?\DateTimeInterface $scheduledDispatchAt = null): void
     {
-        $order->update([
+        $updates = [
             'delivery_status' => Order::DELIVERY_STATUS_FAILED,
             'delivery_failure_reason' => $reason,
-        ]);
+        ];
+
+        // Captured as early as the promise is made to the customer, rather
+        // than waiting until the eventual reassignment — see markReturned()
+        // for the fuller reasoning (the same field, same intent).
+        if ($scheduledDispatchAt !== null) {
+            $updates['scheduled_dispatch_at'] = $scheduledDispatchAt;
+        }
+
+        $order->update($updates);
 
         $this->currentAttempt($order)?->update([
             'status' => Order::DELIVERY_STATUS_FAILED,
@@ -314,17 +323,35 @@ class DispatchService
 
     /**
      * Returned means the goods are confirmed back at the warehouse — unlike a
-     * failed attempt (which may be retried), this releases the allocated stock.
+     * failed attempt (which may be retried), this releases the allocated
+     * stock. $reason is required (unlike markFailed's, which predates this)
+     * — recording nothing beyond "returned" made it too easy for a dispatcher
+     * to lose track of why, and $scheduledDispatchAt lets the promise made to
+     * the customer at return time ("redeliver tomorrow") get recorded
+     * immediately rather than only at the eventual reassignment, so it's
+     * visible on the board — and pre-filled at reassign time — in the
+     * meantime.
      */
-    public function markReturned(Order $order): void
+    public function markReturned(Order $order, string $reason, ?\DateTimeInterface $scheduledDispatchAt = null): void
     {
-        DB::transaction(function () use ($order) {
+        DB::transaction(function () use ($order, $reason, $scheduledDispatchAt) {
             $this->fulfillment->releaseStock($order);
-            $order->update(['delivery_status' => Order::DELIVERY_STATUS_RETURNED]);
+
+            $updates = [
+                'delivery_status' => Order::DELIVERY_STATUS_RETURNED,
+                'return_reason' => $reason,
+            ];
+
+            if ($scheduledDispatchAt !== null) {
+                $updates['scheduled_dispatch_at'] = $scheduledDispatchAt;
+            }
+
+            $order->update($updates);
 
             $this->currentAttempt($order)?->update([
                 'status' => Order::DELIVERY_STATUS_RETURNED,
                 'completed_at' => now(),
+                'return_reason' => $reason,
             ]);
         });
     }

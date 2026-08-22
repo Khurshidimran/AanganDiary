@@ -182,11 +182,29 @@
                             @endif
                             <div class="small text-muted mb-3"><i class="bi bi-geo-alt"></i> Drop-off: {{ $order->formattedAddress() ?? '—' }}</div>
 
+                            @php
+                                $promisedBadgeClass = $order->scheduled_dispatch_at && ($order->scheduled_dispatch_at->isPast() || $order->scheduled_dispatch_at->isToday())
+                                    ? 'bg-warning text-dark'
+                                    : 'bg-info-subtle text-info-emphasis border border-info-subtle';
+                            @endphp
                             @if ($order->delivery_status === 'failed' && $order->delivery_failure_reason)
-                                <div class="alert alert-danger py-1 px-2 small mb-2">Failed attempt: {{ $order->delivery_failure_reason }}</div>
+                                <div class="alert alert-danger py-1 px-2 small mb-2">
+                                    Failed attempt: {{ $order->delivery_failure_reason }}
+                                    @if ($order->scheduled_dispatch_at)
+                                        <span class="badge {{ $promisedBadgeClass }} ms-1">Promised: {{ $order->scheduled_dispatch_at->format('M j, g:i A') }}</span>
+                                    @endif
+                                </div>
                             @endif
                             @if ($order->delivery_status === 'returned')
-                                <div class="alert alert-warning py-1 px-2 small mb-2">Returned by {{ $order->rider?->user->name ?? 'rider' }} — stock released back to inventory. Reassigning will re-allocate it.</div>
+                                <div class="alert alert-warning py-1 px-2 small mb-2">
+                                    Returned by {{ $order->rider?->user->name ?? 'rider' }} — stock released back to inventory. Reassigning will re-allocate it.
+                                    @if ($order->return_reason)
+                                        <br>Reason: {{ $order->return_reason }}
+                                    @endif
+                                    @if ($order->scheduled_dispatch_at)
+                                        <span class="badge {{ $promisedBadgeClass }} ms-1">Promised: {{ $order->scheduled_dispatch_at->format('M j, g:i A') }}</span>
+                                    @endif
+                                </div>
                             @endif
 
                             @can('dispatch.manage')
@@ -224,10 +242,12 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-sm btn-link p-0 mt-1" data-bs-toggle="collapse" data-bs-target="#opts-{{ $order->id }}">
-                                            Schedule dispatch time
+                                            {{ $order->scheduled_dispatch_at ? 'Scheduled: '.$order->scheduled_dispatch_at->format('M j, g:i A').' (change)' : 'Schedule dispatch time' }}
                                         </button>
-                                        <div class="collapse mt-2" id="opts-{{ $order->id }}">
-                                            <input type="datetime-local" name="scheduled_dispatch_at" value="{{ now()->addDay()->setTime(8, 0)->format('Y-m-d\TH:i') }}" class="form-control form-control-sm" title="Scheduled dispatch date/time — defaults to 8:00 AM next day, adjust if needed">
+                                        <div class="collapse mt-2 {{ $order->scheduled_dispatch_at ? 'show' : '' }}" id="opts-{{ $order->id }}">
+                                            <input type="datetime-local" name="scheduled_dispatch_at"
+                                                   value="{{ ($order->scheduled_dispatch_at ?? now()->addDay()->setTime(8, 0))->format('Y-m-d\TH:i') }}"
+                                                   class="form-control form-control-sm" title="Scheduled dispatch date/time — pre-filled from any date promised when this order was marked failed/returned, adjust if needed">
                                         </div>
                                     </form>
                                 @elseif ($order->delivery_status === 'assigned')
@@ -268,10 +288,7 @@
                                             @endif
                                             @if ($order->canBeMarkedFailedOrReturned())
                                                 <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#fail-modal-{{ $order->id }}">Failed</button>
-                                                <form method="POST" action="{{ route('dispatch.returned', $order) }}" class="js-dispatch-form" data-confirm="Mark returned? This releases the allocated stock back.">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Returned</button>
-                                                </form>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#return-modal-{{ $order->id }}">Returned</button>
                                             @endif
                                         </div>
                                     </div>
@@ -300,9 +317,34 @@
                                                 <div class="modal-body">
                                                     <label class="form-label">Reason</label>
                                                     <input type="text" name="reason" class="form-control" required>
+                                                    <label class="form-label mt-2">Reschedule for (optional)</label>
+                                                    <input type="date" name="scheduled_dispatch_at" class="form-control" min="{{ now()->toDateString() }}">
+                                                    <div class="form-text">If the customer asked for a specific redelivery date, set it here so it's not forgotten.</div>
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="submit" class="btn btn-danger">Mark Failed</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="modal fade" id="return-modal-{{ $order->id }}" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <form method="POST" action="{{ route('dispatch.returned', $order) }}" class="modal-content js-dispatch-form">
+                                                @csrf
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Mark Returned</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <label class="form-label">Reason</label>
+                                                    <input type="text" name="reason" class="form-control" required placeholder="e.g. customer asked for redelivery next day">
+                                                    <label class="form-label mt-2">Reschedule for (optional)</label>
+                                                    <input type="date" name="scheduled_dispatch_at" class="form-control" min="{{ now()->toDateString() }}">
+                                                    <div class="form-text">Stock is released back to inventory. If the customer asked for a specific redelivery date, set it here so it's not forgotten.</div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="submit" class="btn btn-secondary">Mark Returned</button>
                                                 </div>
                                             </form>
                                         </div>

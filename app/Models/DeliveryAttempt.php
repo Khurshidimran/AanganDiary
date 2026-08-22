@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'order_id', 'attempt_number', 'rider_id', 'trip_id', 'status',
     'assigned_at', 'picked_up_at', 'out_for_delivery_at', 'delivered_at', 'completed_at',
-    'failure_reason', 'cod_amount', 'cod_collected', 'delivery_charge', 'earning_credited',
+    'failure_reason', 'return_reason', 'cod_amount', 'cod_collected', 'delivery_charge', 'earning_credited',
 ])]
 class DeliveryAttempt extends Model
 {

@@ -32,11 +32,9 @@
                 </form>
             @endcan
             @can('cancel', $order)
-                <form method="POST" action="{{ route('orders.cancel', $order) }}"
-                      onsubmit="return confirm('Cancel this order?');">
-                    @csrf
-                    <button type="submit" class="btn btn-outline-danger btn-sm">Cancel Order</button>
-                </form>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modal-cancel-order">
+                    Cancel Order
+                </button>
             @endcan
             @can('recordPayment', $order)
                 @if ($order->total_outstanding > 0)
@@ -276,6 +274,29 @@
         </div>
     </div>
     </div>
+
+    @can('cancel', $order)
+        <div class="modal fade" id="modal-cancel-order" tabindex="-1">
+            <div class="modal-dialog">
+                <form method="POST" action="{{ route('orders.cancel', $order) }}" class="modal-content">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title">Cancel Order</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label class="form-label small">Reason</label>
+                        <input type="text" name="reason" class="form-control @error('reason') is-invalid @enderror" required>
+                        @error('reason') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Back</button>
+                        <button type="submit" class="btn btn-danger">Confirm Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endcan
 
     @can('recordPayment', $order)
         @if ($order->total_outstanding > 0)

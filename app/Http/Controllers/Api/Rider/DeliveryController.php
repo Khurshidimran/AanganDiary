@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Services\DispatchService;
+use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -105,9 +106,16 @@ class DeliveryController extends Controller
         $this->ensureOwnership($request, $order);
         abort_unless($order->canBeMarkedFailedOrReturned(), 422, 'This order cannot be marked as failed right now.');
 
-        $validated = $request->validate(['reason' => ['required', 'string', 'max:255']]);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:255'],
+            'scheduled_dispatch_at' => ['nullable', 'date'],
+        ]);
 
-        $this->dispatch->markFailed($order, $validated['reason']);
+        $this->dispatch->markFailed(
+            $order,
+            $validated['reason'],
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+        );
 
         return new OrderResource($order->fresh('items'));
     }
@@ -117,7 +125,16 @@ class DeliveryController extends Controller
         $this->ensureOwnership($request, $order);
         abort_unless($order->canBeMarkedFailedOrReturned(), 422, 'This order cannot be marked as returned right now.');
 
-        $this->dispatch->markReturned($order);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:255'],
+            'scheduled_dispatch_at' => ['nullable', 'date'],
+        ]);
+
+        $this->dispatch->markReturned(
+            $order,
+            $validated['reason'],
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+        );
 
         return new OrderResource($order->fresh('items'));
     }

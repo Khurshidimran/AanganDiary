@@ -70,8 +70,11 @@
                 @elseif ($attempt->status === 'returned')
                     <div class="alert alert-warning py-2 px-3 small mt-3 mb-0">
                         Returned to warehouse — stock released back to inventory.
+                        @if ($attempt->return_reason)
+                            <br>Return Reason: {{ $attempt->return_reason }}
+                        @endif
                         @if ($attempt->failure_reason)
-                            Original failure reason: {{ $attempt->failure_reason }}.
+                            <br>Original Failure Reason: {{ $attempt->failure_reason }}
                         @endif
                     </div>
                 @elseif ($attempt->status === 'delivered')

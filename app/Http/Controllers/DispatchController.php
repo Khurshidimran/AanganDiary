@@ -33,22 +33,27 @@ class DispatchController extends Controller
         $dateTo = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : today()->endOfDay();
 
         $orders = Order::with(['items', 'rider.user', 'rider.warehouse'])
-            ->whereBetween('shopify_created_at', [$dateFrom, $dateTo])
-            ->where(function ($query) {
+            ->where(function ($query) use ($dateFrom, $dateTo) {
                 $query
-                    // "Pending" only means something a dispatcher can act on
-                    // if it's actually confirmed — an order Shopify sent over
-                    // that staff hasn't reviewed yet doesn't belong here (and
-                    // canBeAssigned() would refuse it anyway, leaving the
-                    // card with no controls at all).
-                    ->where(fn ($q) => $q->where('order_status', Order::ORDER_STATUS_CONFIRMED)
+                    // Delivered is historical record — "what got completed in
+                    // this window" — so it's the only bucket still scoped to
+                    // the selected date range.
+                    ->where(fn ($q) => $q->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)
+                        ->whereBetween('shopify_created_at', [$dateFrom, $dateTo]))
+                    // Everything still unresolved always shows regardless of
+                    // when it was placed — a returned/failed order (or one
+                    // that's simply never been assigned) doesn't get less
+                    // urgent just because the calendar moved on. This is the
+                    // fix for orders silently vanishing off the board the day
+                    // after they're returned: hiding them behind the date
+                    // filter is exactly how they get forgotten.
+                    ->orWhere(fn ($q) => $q->where('order_status', Order::ORDER_STATUS_CONFIRMED)
                         ->where('delivery_status', Order::DELIVERY_STATUS_PENDING))
                     ->orWhereIn('delivery_status', [
                         Order::DELIVERY_STATUS_FAILED,
                         Order::DELIVERY_STATUS_ASSIGNED,
                         Order::DELIVERY_STATUS_PICKED_UP,
                         Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
-                        Order::DELIVERY_STATUS_DELIVERED,
                         Order::DELIVERY_STATUS_RETURNED,
                     ]);
             })
@@ -291,15 +296,22 @@ class DispatchController extends Controller
             return back()->with('error', 'This order cannot be marked as failed right now.');
         }
 
-        $validated = $request->validate(['reason' => ['required', 'string', 'max:255']]);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:255'],
+            'scheduled_dispatch_at' => ['nullable', 'date'],
+        ]);
 
-        $this->dispatch->markFailed($order, $validated['reason']);
+        $this->dispatch->markFailed(
+            $order,
+            $validated['reason'],
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+        );
         $this->auditLog->log('delivery_failed', 'orders', $order, null, ['reason' => $validated['reason']]);
 
         return back()->with('status', 'Order marked as delivery failed.');
     }
 
-    public function returned(Order $order): RedirectResponse
+    public function returned(Request $request, Order $order): RedirectResponse
     {
         $this->authorize('dispatch.manage');
 
@@ -307,9 +319,18 @@ class DispatchController extends Controller
             return back()->with('error', 'This order cannot be marked as returned right now.');
         }
 
-        $this->dispatch->markReturned($order);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:255'],
+            'scheduled_dispatch_at' => ['nullable', 'date'],
+        ]);
 
-        $this->auditLog->log('returned', 'orders', $order, null, ['delivery_status' => $order->delivery_status]);
+        $this->dispatch->markReturned(
+            $order,
+            $validated['reason'],
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+        );
+
+        $this->auditLog->log('returned', 'orders', $order, null, ['delivery_status' => $order->delivery_status, 'reason' => $validated['reason']]);
 
         return back()->with('status', 'Order marked as returned; stock released back.');
     }

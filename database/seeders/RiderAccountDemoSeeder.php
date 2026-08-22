@@ -109,7 +109,7 @@ class RiderAccountDemoSeeder extends Seeder
             $dispatch->markPickedUp($order1050);
             $dispatch->markOutForDelivery($order1050);
             $dispatch->markFailed($order1050, 'Customer unavailable');
-            $dispatch->markReturned($order1050);
+            $dispatch->markReturned($order1050, 'Customer unavailable — rider returned parcel to warehouse');
             $dispatch->assign($order1050, $riderB); // re-allocates stock, attempt #2
             $dispatch->markPickedUp($order1050);
             $dispatch->markOutForDelivery($order1050);
@@ -122,7 +122,7 @@ class RiderAccountDemoSeeder extends Seeder
             $dispatch->markPickedUp($order1048);
             $dispatch->markOutForDelivery($order1048);
             $dispatch->markFailed($order1048, 'Address not found');
-            $dispatch->markReturned($order1048);
+            $dispatch->markReturned($order1048, 'Address not found — rider returned parcel to warehouse', now()->addDay());
 
             // --- Currently out for delivery. ---
             $order1042 = $makeOrder('1042', 'Usman Ali', '0300-5551042', $milk, 3);

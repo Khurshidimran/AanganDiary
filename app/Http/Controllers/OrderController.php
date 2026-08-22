@@ -309,9 +309,11 @@ class OrderController extends Controller
             : 'Order confirmed and stock allocated.').$accountingNote);
     }
 
-    public function cancel(Order $order): RedirectResponse
+    public function cancel(Request $request, Order $order): RedirectResponse
     {
         $this->authorize('cancel', $order);
+
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:255']]);
 
         // Cancel on Shopify's side first — if this fails, the local
         // cancellation doesn't proceed either, so the two systems never
@@ -329,12 +331,15 @@ class OrderController extends Controller
         $wasConfirmed = $order->order_status === Order::ORDER_STATUS_CONFIRMED;
 
         try {
-            DB::transaction(function () use ($order, $wasConfirmed) {
+            DB::transaction(function () use ($order, $wasConfirmed, $validated) {
                 if ($wasConfirmed) {
                     $this->fulfillment->releaseStock($order);
                 }
 
-                $order->update(['order_status' => Order::ORDER_STATUS_CANCELLED]);
+                $order->update([
+                    'order_status' => Order::ORDER_STATUS_CANCELLED,
+                    'cancellation_reason' => $validated['reason'],
+                ]);
             });
         } catch (WarehouseNotConfiguredException $e) {
             return back()->with('error', "Cannot cancel order: {$e->getMessage()}");
@@ -344,7 +349,7 @@ class OrderController extends Controller
             $this->accounting->voidSalesEntry($order, 'Order cancelled');
         }
 
-        $this->auditLog->log('cancelled', 'orders', $order, null, ['order_status' => $order->order_status]);
+        $this->auditLog->log('cancelled', 'orders', $order, null, ['order_status' => $order->order_status, 'reason' => $validated['reason']]);
 
         return back()->with('status', 'Order cancelled — locally and in Shopify.');
     }

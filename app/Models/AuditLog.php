@@ -46,7 +46,7 @@ class AuditLog extends Model
         return match ($this->action) {
             'created' => $fromShopify ? 'Order created (synced from Shopify)' : 'Order created manually',
             'confirmed' => $fromShopify ? 'Order auto-confirmed on Shopify sync' : 'Order confirmed',
-            'cancelled' => $fromShopify ? 'Order cancelled on Shopify' : 'Order cancelled',
+            'cancelled' => ($fromShopify ? 'Order cancelled on Shopify' : 'Order cancelled').(filled($new['reason'] ?? null) ? ' — '.$new['reason'] : ''),
             'assigned' => 'Assigned to '.($new['rider_name'] ?? 'a rider'),
             'unassigned' => 'Unassigned from '.($old['rider'] ?? 'rider').' — back to pending',
             'instructions_updated' => filled($new['rider_instructions'] ?? null)
@@ -56,7 +56,7 @@ class AuditLog extends Model
             'out_for_delivery' => 'Marked as out for delivery',
             'delivered' => 'Marked as delivered',
             'delivery_failed' => 'Delivery failed — '.($new['reason'] ?? 'no reason given'),
-            'returned' => 'Marked as returned — stock released back to inventory',
+            'returned' => 'Marked as returned — stock released back to inventory. Reason: '.($new['reason'] ?? 'no reason given'),
             default => str($this->action)->headline(),
         };
     }

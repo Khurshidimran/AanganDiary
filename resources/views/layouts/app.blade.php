@@ -56,6 +56,13 @@
                             </a>
                         </li>
                     @endcan
+                    @can('customers.view')
+                        <li class="nav-item">
+                            <a href="{{ route('customers.index') }}" class="nav-link {{ request()->routeIs('customers.*') ? 'active' : '' }}">
+                                <i class="bi bi-people me-2"></i> Customers
+                            </a>
+                        </li>
+                    @endcan
                 @endcan
 
                 @canany(['dispatch.view', 'riders.view'])
