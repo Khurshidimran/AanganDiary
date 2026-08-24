@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Orders')
+@section('title', request()->routeIs('sales.*') ? 'Sales' : 'Orders')
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h4 mb-0">Orders</h1>
+        <h1 class="h4 mb-0">{{ request()->routeIs('sales.*') ? 'Sales' : 'Orders' }}</h1>
         @can('create', \App\Models\Order::class)
             <a href="{{ route('orders.create') }}" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-lg"></i> New Order

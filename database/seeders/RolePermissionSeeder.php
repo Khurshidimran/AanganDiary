@@ -22,6 +22,7 @@ class RolePermissionSeeder extends Seeder
         'Accounts User',
         'Purchasing User',
         'Rider',
+        'Management Viewer',
     ];
 
     private const PERMISSIONS = [
@@ -41,6 +42,7 @@ class RolePermissionSeeder extends Seeder
         'stock_adjustments.view', 'stock_adjustments.create', 'stock_adjustments.edit', 'stock_adjustments.delete',
         'shopify.view', 'shopify.sync',
         'orders.view', 'orders.create', 'orders.edit', 'orders.record-payment', 'orders.delete',
+        'sales.view',
         'customers.view', 'customers.create', 'customers.edit', 'customers.delete',
         'channels.view', 'channels.create', 'channels.edit', 'channels.delete',
         'riders.view', 'riders.create', 'riders.edit', 'riders.delete',
@@ -143,6 +145,18 @@ class RolePermissionSeeder extends Seeder
             'expenses.view', 'expenses.create', 'expenses.edit',
             'journal_entries.view', 'journal_entries.create',
             'reports.financial.view',
+        ]);
+
+        // Read-only monitoring for Directors/senior management: orders.view already
+        // exposes the full Dashboard (its content is gated by orders.view, not a
+        // dedicated dashboard permission — see dashboard.blade.php), and Orders/
+        // Dispatch Board/Riders/Sales all already hide every mutating action behind
+        // permissions this role deliberately never gets (orders.edit, dispatch.manage,
+        // riders.edit, rider_wallet.manage, etc.). rider_wallet.view (view-only —
+        // distinct from rider_wallet.manage) unlocks the Dashboard's Courier
+        // Performance widget and COD alert without granting deposit/pay/adjust.
+        Role::findByName('Management Viewer')->syncPermissions([
+            'orders.view', 'dispatch.view', 'riders.view', 'rider_wallet.view', 'sales.view',
         ]);
 
         // Super Admin bypasses permission checks entirely via Gate::before (see AuthServiceProvider).

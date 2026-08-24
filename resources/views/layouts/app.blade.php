@@ -88,6 +88,15 @@
                     @endcan
                 @endcanany
 
+                @can('sales.view')
+                    <li class="nav-section-title">Sales</li>
+                    <li class="nav-item">
+                        <a href="{{ route('sales.index') }}" class="nav-link {{ request()->routeIs('sales.*') ? 'active' : '' }}">
+                            <i class="bi bi-graph-up me-2"></i> Sales
+                        </a>
+                    </li>
+                @endcan
+
                 @canany(['categories.view', 'brands.view', 'units.view', 'products.view'])
                     <li class="nav-section-title">Catalog</li>
                     @can('categories.view')

@@ -96,6 +96,10 @@ Route::middleware('auth')->group(function () {
     Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::post('orders/{order}/payments', [OrderPaymentController::class, 'store'])->name('orders.payments.store');
 
+    // Read-only alias for Management Viewer's "Sales" nav item — reuses
+    // OrderController::index() as-is (no separate Sales module exists yet).
+    Route::get('sales', [OrderController::class, 'index'])->name('sales.index');
+
     Route::get('shopify', [ShopifyController::class, 'index'])->name('shopify.index');
     Route::post('shopify/sync-products', [ShopifyController::class, 'syncProducts'])->name('shopify.sync-products');
     Route::post('shopify/push-inventory', [ShopifyController::class, 'pushInventory'])->name('shopify.push-inventory');
