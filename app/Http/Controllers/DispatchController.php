@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\InsufficientStockException;
-use App\Exceptions\WarehouseNotConfiguredException;
 use App\Models\Order;
 use App\Models\RiderProfile;
 use App\Models\Warehouse;
@@ -159,20 +157,18 @@ class DispatchController extends Controller
         ]);
         $rider = RiderProfile::findOrFail($validated['rider_id']);
 
-        try {
-            $this->dispatch->assign(
-                $order,
-                $rider,
-                $validated['rider_instructions'] ?? null,
-                isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
-            );
-        } catch (InsufficientStockException|WarehouseNotConfiguredException $e) {
-            return back()->with('error', "Cannot reassign — {$e->getMessage()}");
-        }
+        $stockWarning = $this->dispatch->assign(
+            $order,
+            $rider,
+            $validated['rider_instructions'] ?? null,
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+        );
 
         $this->auditLog->log('assigned', 'orders', $order, null, ['rider_id' => $rider->id, 'rider_name' => $rider->user->name]);
 
-        return back()->with('status', "Order assigned to {$rider->user->name}.");
+        return back()->with('status', $stockWarning
+            ? "Order assigned to {$rider->user->name}. Stock was not allocated: {$stockWarning}"
+            : "Order assigned to {$rider->user->name}.");
     }
 
     public function pickedUp(Order $order): RedirectResponse

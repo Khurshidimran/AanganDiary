@@ -55,23 +55,36 @@ class DispatchService
     }
 
     /**
-     * @throws InsufficientStockException|WarehouseNotConfiguredException
+     * @return ?string A stock/warehouse warning message if allocation
+     *                  couldn't fully complete, or null if it either
+     *                  succeeded or wasn't attempted. Never blocks the
+     *                  assignment itself — mirrors OrderController::confirm(),
+     *                  which treats stock the same way: attempted when
+     *                  possible, but never a reason to stop an operational
+     *                  action, since this client doesn't manage inventory
+     *                  closely enough for a shortage to be trustworthy
+     *                  grounds to block a real rider/delivery decision.
      */
     public function assign(
         Order $order,
         RiderProfile $rider,
         ?string $riderInstructions = null,
         ?\DateTimeInterface $scheduledDispatchAt = null,
-    ): void {
+    ): ?string {
+        $stockWarning = null;
+
         // A returned order already had its stock released back to the
         // warehouse (see markReturned below) — putting it back out for
         // another delivery attempt needs a fresh allocation, the same as
-        // the original confirm() did, or the warehouse balance would
-        // silently overstate what's actually on hand. Lets the caller
-        // catch a shortage rather than reassigning a rider to an order that
-        // can no longer be fulfilled.
+        // the original confirm() did. Attempted best-effort (still deducts
+        // whatever batches ARE available), but a shortage no longer blocks
+        // the reassignment — see the docblock above.
         if ($order->delivery_status === Order::DELIVERY_STATUS_RETURNED) {
-            $this->fulfillment->allocateStock($order);
+            try {
+                $this->fulfillment->allocateStock($order);
+            } catch (InsufficientStockException|WarehouseNotConfiguredException $e) {
+                $stockWarning = $e->getMessage();
+            }
         }
 
         $updates = [
@@ -114,6 +127,8 @@ class DispatchService
                 data: ['order_id' => $order->id, 'type' => 'delivery_assigned'],
             );
         }
+
+        return $stockWarning;
     }
 
     /**
