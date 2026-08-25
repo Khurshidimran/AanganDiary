@@ -158,6 +158,15 @@ class ShopifyProductSyncService
                         'shopify_inventory_item_id' => isset($shopifyVariant['inventory_item_id'])
                             ? (string) $shopifyVariant['inventory_item_id']
                             : null,
+                        // These mirror Shopify's current values on every sync,
+                        // not just at creation — previously only the Shopify
+                        // ID linkage fields were refreshed here, so a price
+                        // change made on Shopify was silently never reflected
+                        // locally after the variant's first sync.
+                        'name' => $shopifyVariant['title'] ?? $sku,
+                        'barcode' => $shopifyVariant['barcode'] ?? null,
+                        'sale_price' => $shopifyVariant['price'] ?? 0,
+                        'compare_at_price' => $shopifyVariant['compare_at_price'] ?? null,
                     ]);
                     $anyUpdated = true;
 

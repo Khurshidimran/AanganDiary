@@ -6,8 +6,10 @@ use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Account;
 use App\Models\Customer;
+use App\Models\CustomerAddress;
 use App\Models\Order;
 use App\Services\AuditLogService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -16,6 +18,48 @@ class CustomerController extends Controller
 {
     public function __construct(private readonly AuditLogService $auditLog)
     {
+    }
+
+    /**
+     * Feeds the "Find Existing Customer" searchable picker on the manual
+     * order-creation screen — gated by orders.create (not customers.view)
+     * since that's the only place this is used, and a user who can create
+     * orders should be able to look up a customer for one regardless of
+     * whether they separately have Customer module access.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $this->authorize('create', Order::class);
+
+        $term = trim((string) $request->query('q', ''));
+
+        if ($term === '') {
+            return response()->json([]);
+        }
+
+        $customers = Customer::with('addresses')
+            ->where(fn ($q) => $q->where('phone', 'like', "%{$term}%")->orWhere('name', 'like', "%{$term}%"))
+            ->orderBy('name')
+            ->limit(20)
+            ->get();
+
+        return response()->json($customers->map(fn (Customer $customer) => [
+            'value' => $customer->id,
+            'text' => "{$customer->name} — {$customer->phone}",
+            'name' => $customer->name,
+            'phone' => $customer->phone,
+            'email' => $customer->email,
+            'addresses' => $customer->addresses->map(fn (CustomerAddress $address) => [
+                'id' => $address->id,
+                'label' => $address->label(),
+                'address1' => $address->address1,
+                'address2' => $address->address2,
+                'city' => $address->city,
+                'country' => $address->country,
+                'phone' => $address->phone,
+                'is_default' => $address->is_default,
+            ])->values(),
+        ]));
     }
 
     public function index(Request $request): View
