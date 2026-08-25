@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['customer_id', 'label', 'address1', 'address2', 'city', 'country', 'phone', 'is_default'])]
+#[Fillable(['customer_id', 'label', 'address1', 'address2', 'city', 'country', 'phone', 'is_default', 'latitude', 'longitude'])]
 class CustomerAddress extends Model
 {
     use HasUuid, SoftDeletes;
@@ -17,6 +17,8 @@ class CustomerAddress extends Model
     {
         return [
             'is_default' => 'boolean',
+            'latitude' => 'float',
+            'longitude' => 'float',
         ];
     }
 

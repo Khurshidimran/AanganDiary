@@ -5,6 +5,8 @@ namespace App\Services\Shopify;
 use App\Exceptions\InsufficientStockException;
 use App\Exceptions\WarehouseNotConfiguredException;
 use App\Models\Channel;
+use App\Models\Customer;
+use App\Models\CustomerAddress;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\ShopifySyncLog;
@@ -104,10 +106,13 @@ class ShopifyOrderSyncService
             $isNew = ! $order->exists;
             $wasCancelled = $order->getOriginal('order_status') === Order::ORDER_STATUS_CANCELLED;
 
+            $customer = $this->resolveCustomer($payload);
+
             $order->fill([
                 'shopify_order_number' => $payload['name'] ?? ($payload['order_number'] ?? null),
                 'channel_id' => $this->resolveChannelId($order, $payload['source_name'] ?? null),
                 'shopify_source_name' => $payload['source_name'] ?? null,
+                'customer_id' => $customer?->id,
                 'customer_name' => $this->customerName($payload),
                 'customer_email' => $payload['email'] ?? ($payload['contact_email'] ?? null),
                 // Some order sources (e.g. third-party COD form apps) leave both the
@@ -147,6 +152,10 @@ class ShopifyOrderSyncService
             }
 
             $order->save();
+
+            if ($customer) {
+                $this->syncCustomerAddress($customer, $payload['shipping_address'] ?? null);
+            }
 
             if ($isNew) {
                 $this->auditLog->log('created', 'orders', $order, null, ['shopify_order_number' => $order->shopify_order_number, 'source' => 'shopify']);
@@ -286,6 +295,103 @@ class ShopifyOrderSyncService
         }
 
         return $log->fresh();
+    }
+
+    /**
+     * Matches the order to a Customer record by phone (normalized to the
+     * last 10 digits, so "+92 340 0009454", "03400009454" and
+     * "923400009454" all resolve to the same customer), falling back to
+     * email if no phone match is found. Creates a new Customer when
+     * neither matches — returns null only when the order carries neither a
+     * phone nor a name to create one with (customer_id already tolerates
+     * null; this just leaves it unset, same as every order before this).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function resolveCustomer(array $payload): ?Customer
+    {
+        $phone = $payload['phone']
+            ?? ($payload['customer']['phone'] ?? null)
+            ?? ($payload['billing_address']['phone'] ?? null)
+            ?? ($payload['shipping_address']['phone'] ?? null);
+
+        $normalizedPhone = $phone ? substr(preg_replace('/\D+/', '', $phone), -10) : null;
+
+        if ($normalizedPhone) {
+            $existing = Customer::whereRaw("RIGHT(REGEXP_REPLACE(phone, '[^0-9]', ''), 10) = ?", [$normalizedPhone])->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        $email = $payload['email'] ?? ($payload['contact_email'] ?? null);
+
+        if ($email) {
+            $existing = Customer::where('email', $email)->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        // customers.phone is required at the database level — an order with
+        // neither a phone nor a name to fall back on can't produce a valid
+        // Customer, so it's left unlinked rather than guessing.
+        if (! $normalizedPhone && ! $phone) {
+            return null;
+        }
+
+        return Customer::create([
+            'name' => $this->customerName($payload) ?? 'Unknown Customer',
+            'phone' => $phone,
+            'email' => $email,
+        ]);
+    }
+
+    /**
+     * Keeps a customer's saved address book in sync with Shopify's geocoded
+     * coordinates. Matches an existing address by street + city (so a
+     * repeat order to the same place refreshes its pin rather than piling
+     * up duplicates); creates a new saved address otherwise, mirroring the
+     * same is_default convention CustomerAddressController::store() uses.
+     *
+     * @param  array<string, mixed>|null  $shippingAddress
+     */
+    private function syncCustomerAddress(Customer $customer, ?array $shippingAddress): void
+    {
+        $address1 = trim((string) ($shippingAddress['address1'] ?? ''));
+
+        if ($address1 === '') {
+            return;
+        }
+
+        $city = $shippingAddress['city'] ?? 'Lahore';
+
+        $existing = CustomerAddress::where('customer_id', $customer->id)
+            ->whereRaw('LOWER(address1) = ?', [mb_strtolower($address1)])
+            ->whereRaw('LOWER(city) = ?', [mb_strtolower((string) $city)])
+            ->first();
+
+        if ($existing) {
+            $existing->update([
+                'latitude' => $shippingAddress['latitude'] ?? $existing->latitude,
+                'longitude' => $shippingAddress['longitude'] ?? $existing->longitude,
+            ]);
+
+            return;
+        }
+
+        $customer->addresses()->create([
+            'address1' => $address1,
+            'address2' => $shippingAddress['address2'] ?? null,
+            'city' => $city,
+            'country' => $shippingAddress['country'] ?? 'Pakistan',
+            'phone' => $shippingAddress['phone'] ?? null,
+            'latitude' => $shippingAddress['latitude'] ?? null,
+            'longitude' => $shippingAddress['longitude'] ?? null,
+            'is_default' => $customer->addresses()->count() === 0,
+        ]);
     }
 
     /**

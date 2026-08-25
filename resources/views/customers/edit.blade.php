@@ -3,6 +3,12 @@
 @section('title', 'Edit Customer')
 
 @section('content')
+    @if (config('services.google_maps.key'))
+        @push('scripts')
+            <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}&libraries=places"></script>
+        @endpush
+    @endif
+
     <h1 class="h4 mb-3">Edit Customer</h1>
 
     <div class="row g-3">

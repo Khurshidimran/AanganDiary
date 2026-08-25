@@ -46,6 +46,12 @@ return [
         'api_secret' => env('SHOPIFY_API_SECRET'),
     ],
 
+    // Places + Maps JavaScript API — the location picker on the customer
+    // address form (resources/views/customers/_address-form.blade.php).
+    'google_maps' => [
+        'key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
     // Firebase Cloud Messaging — push notifications to the rider app. Credentials
     // are a Firebase service-account JSON file (Project Settings > Service
     // Accounts > Generate new private key), not a simple API key.

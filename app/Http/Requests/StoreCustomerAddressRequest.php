@@ -24,6 +24,8 @@ class StoreCustomerAddressRequest extends FormRequest
             'city' => ['required', Rule::in(['Lahore'])],
             'country' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ];
     }
 }
