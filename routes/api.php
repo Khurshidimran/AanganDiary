@@ -25,7 +25,7 @@ Route::middleware('shopify.webhook')->prefix('webhooks/shopify')->group(function
 // 'rider' ability; every other route requires that token plus the 'rider'
 // middleware, which additionally checks the authenticated user actually has
 // a rider_profiles row (see EnsureIsRider).
-Route::prefix('v1/rider')->name('api.rider.')->group(function () {
+Route::prefix('v1/rider')->name('api.rider.')->middleware('log.rider-app')->group(function () {
     Route::post('login', [RiderAuthController::class, 'login'])
         ->middleware('throttle:5,1')
         ->name('login');

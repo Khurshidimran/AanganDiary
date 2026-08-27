@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureIsRider;
+use App\Http\Middleware\LogRiderApiRequest;
 use App\Http\Middleware\VerifyShopifyWebhook;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'shopify.webhook' => VerifyShopifyWebhook::class,
             'rider' => EnsureIsRider::class,
+            'log.rider-app' => LogRiderApiRequest::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
