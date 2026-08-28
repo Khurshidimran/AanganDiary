@@ -162,11 +162,13 @@ class DispatchService
         $order->update(['rider_instructions' => $instructions]);
     }
 
-    public function markPickedUp(Order $order): void
+    public function markPickedUp(Order $order, ?string $popPhotoPath = null): void
     {
         $order->update([
             'delivery_status' => Order::DELIVERY_STATUS_PICKED_UP,
             'picked_up_at' => now(),
+            'pop_photo_path' => $popPhotoPath,
+            'pop_captured_at' => $popPhotoPath ? now() : null,
         ]);
 
         $this->currentAttempt($order)?->update([

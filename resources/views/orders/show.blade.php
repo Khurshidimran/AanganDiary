@@ -88,6 +88,24 @@
                     @endif
                 </dl>
 
+                @if ($order->pop_photo_path)
+                    @php
+                        $popPhotoUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($order->pop_photo_path);
+                    @endphp
+                    <div class="mt-3">
+                        <div class="small fw-semibold mb-1">Proof of Pickup ({{ $order->pop_captured_at?->format('Y-m-d H:i') }})</div>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div>
+                                <div class="text-muted small mb-1">Photo</div>
+                                <a href="{{ $popPhotoUrl }}" target="_blank">
+                                    <img src="{{ $popPhotoUrl }}" alt="Pickup photo"
+                                         style="width:140px;height:140px;object-fit:cover;" class="border rounded">
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 @if ($order->pod_photo_path || $order->pod_signature_path)
                     @php
                         $podPhotoUrl = $order->pod_photo_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($order->pod_photo_path) : null;

@@ -45,7 +45,18 @@ class DeliveryController extends Controller
         abort_if($order->isCancelled(), 422, 'This order was cancelled in Shopify and cannot be picked up.');
         abort_unless($order->canBeMarkedPickedUp(), 422, 'This order is not in an assigned state.');
 
-        $this->dispatch->markPickedUp($order);
+        // Optional, not required — existing app versions don't send this yet,
+        // and making it mandatory now would break pickup for them until
+        // they're updated to actually capture a photo.
+        $validated = $request->validate([
+            'photo' => ['nullable', 'image', 'max:5120'],
+        ]);
+
+        $photoPath = $request->hasFile('photo')
+            ? $request->file('photo')->store("proof-of-pickup/{$order->id}", 'public')
+            : null;
+
+        $this->dispatch->markPickedUp($order, $photoPath);
 
         return new OrderResource($order->fresh('items'));
     }

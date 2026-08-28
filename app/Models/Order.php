@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'billing_address', 'shipping_address', 'order_status', 'payment_status', 'payment_type', 'delivery_status',
     'currency', 'subtotal', 'discount_total', 'tax_total', 'shipping_total', 'total', 'total_outstanding', 'notes', 'shopify_created_at',
     'rider_id', 'route_sequence', 'assigned_at', 'scheduled_dispatch_at', 'rider_instructions',
-    'picked_up_at', 'delivered_at', 'cod_amount', 'cod_collected',
+    'picked_up_at', 'pop_photo_path', 'pop_captured_at', 'delivered_at', 'cod_amount', 'cod_collected',
     'delivery_failure_reason', 'return_reason', 'cancellation_reason', 'pod_photo_path', 'pod_signature_path', 'pod_captured_at',
     'deleted_by',
 ])]
@@ -58,6 +58,7 @@ class Order extends Model
             'assigned_at' => 'datetime',
             'scheduled_dispatch_at' => 'datetime',
             'picked_up_at' => 'datetime',
+            'pop_captured_at' => 'datetime',
             'delivered_at' => 'datetime',
             'cod_amount' => 'decimal:2',
             'cod_collected' => 'boolean',
