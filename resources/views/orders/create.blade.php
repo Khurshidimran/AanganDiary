@@ -47,6 +47,18 @@
                         <div class="form-text">Credit orders appear on the Receivables Aging report until fully paid.</div>
                         @error('payment_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label d-block">Order Type</label>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="order_type" id="order_type_delivery" value="delivery" autocomplete="off" @checked(old('order_type', 'delivery') === 'delivery')>
+                            <label class="btn btn-outline-secondary btn-sm" for="order_type_delivery">Delivery</label>
+
+                            <input type="radio" class="btn-check" name="order_type" id="order_type_self_pickup" value="self_pickup" autocomplete="off" @checked(old('order_type') === 'self_pickup')>
+                            <label class="btn btn-outline-secondary btn-sm" for="order_type_self_pickup">Self Pickup</label>
+                        </div>
+                        <div class="form-text">Self pickup skips the Dispatch Board entirely and waives the shipping charge.</div>
+                        @error('order_type') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                    </div>
                 </div>
 
                 <hr>
@@ -390,6 +402,32 @@
                     this.classList.add('d-none');
                     populateAddressSelect([]);
                 });
+
+                // ---- Order Type: Self Pickup waives the shipping charge --
+                // clear and lock the field rather than just hiding it, so a
+                // stale value from before switching can't sneak into the total. ----
+                const shippingTotalInput = document.getElementById('shipping_total');
+                const shippingTotalPrevious = {value: shippingTotalInput.value};
+
+                function applyOrderTypeToggle() {
+                    const isSelfPickup = document.getElementById('order_type_self_pickup').checked;
+
+                    if (isSelfPickup) {
+                        shippingTotalPrevious.value = shippingTotalInput.value;
+                        shippingTotalInput.value = 0;
+                        shippingTotalInput.disabled = true;
+                    } else {
+                        shippingTotalInput.disabled = false;
+                        shippingTotalInput.value = shippingTotalPrevious.value;
+                    }
+
+                    recalcTotals();
+                }
+
+                document.querySelectorAll('input[name="order_type"]').forEach((input) => {
+                    input.addEventListener('change', applyOrderTypeToggle);
+                });
+                applyOrderTypeToggle();
 
                 recalcTotals();
             })();

@@ -59,6 +59,8 @@ class AuditLog extends Model
             'delivery_failed' => 'Delivery failed — '.($new['reason'] ?? 'no reason given'),
             'returned' => 'Marked as returned — stock released back to inventory. Reason: '.($new['reason'] ?? 'no reason given'),
             'deleted' => 'Order deleted by '.($new['deleted_by'] ?? 'an admin'),
+            'self_picked_up' => 'Marked as picked up by the customer',
+            'order_type_changed' => 'Order type changed from '.str($old['order_type'] ?? 'delivery')->headline().' to '.str($new['order_type'] ?? 'delivery')->headline(),
             default => str($this->action)->headline(),
         };
     }

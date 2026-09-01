@@ -29,7 +29,7 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
         return [
             'Sr#', 'Order No', 'Customer Name', 'Customer Contact',
             'Order Amount', 'Discount', 'Delivery Charges', 'Total Amount',
-            'Address', 'Order Detail', 'Order Date', 'Order Status', 'Delivery Status', 'Delivered Date/Time',
+            'Address', 'Order Detail', 'Order Date', 'Order Status', 'Order Type', 'Delivery Status', 'Delivered Date/Time',
             'Payment Status', 'Rider Name', 'Scheduled Dispatch', 'Instructions for Rider',
         ];
     }
@@ -52,6 +52,7 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping
             $order->itemsSummary(),
             $order->shopify_created_at?->format('Y-m-d H:i'),
             ucfirst($order->order_status),
+            $order->isSelfPickup() ? 'Self Pickup' : 'Delivery',
             str($order->delivery_status)->headline(),
             $order->delivered_at?->format('Y-m-d H:i') ?? '',
             str($order->payment_status)->headline(),

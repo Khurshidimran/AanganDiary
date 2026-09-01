@@ -87,16 +87,25 @@ class RiderController extends Controller
             ->whereBetween('shopify_created_at', [$dateFrom, $dateTo])
             ->get();
 
+        // Each status bucket carries both a count and that bucket's own order
+        // value (not just the row's overall total) — e.g. "19 / 2,000" for
+        // Delivered means those 19 delivered orders total Rs. 2,000, distinct
+        // from whatever's still failed/returned/in-flight.
+        $bucket = fn ($riderOrders, string $status) => [
+            'count' => $riderOrders->where('delivery_status', $status)->count(),
+            'amount' => $riderOrders->where('delivery_status', $status)->sum('total'),
+        ];
+
         $rows = $orders->groupBy('rider_id')
             ->map(fn ($riderOrders) => [
                 'rider' => $riderOrders->first()->rider,
                 'total_orders' => $riderOrders->count(),
-                'assigned' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_ASSIGNED)->count(),
-                'picked_up' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_PICKED_UP)->count(),
-                'out_for_delivery' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_OUT_FOR_DELIVERY)->count(),
-                'delivered' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)->count(),
-                'failed' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_FAILED)->count(),
-                'returned' => $riderOrders->where('delivery_status', Order::DELIVERY_STATUS_RETURNED)->count(),
+                'assigned' => $bucket($riderOrders, Order::DELIVERY_STATUS_ASSIGNED),
+                'picked_up' => $bucket($riderOrders, Order::DELIVERY_STATUS_PICKED_UP),
+                'out_for_delivery' => $bucket($riderOrders, Order::DELIVERY_STATUS_OUT_FOR_DELIVERY),
+                'delivered' => $bucket($riderOrders, Order::DELIVERY_STATUS_DELIVERED),
+                'failed' => $bucket($riderOrders, Order::DELIVERY_STATUS_FAILED),
+                'returned' => $bucket($riderOrders, Order::DELIVERY_STATUS_RETURNED),
                 'total_amount' => $riderOrders->sum('total'),
             ])
             ->sortByDesc('total_orders')

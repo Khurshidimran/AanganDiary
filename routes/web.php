@@ -94,6 +94,8 @@ Route::middleware('auth')->group(function () {
     Route::get('orders/export/excel', [OrderController::class, 'exportExcel'])->name('orders.export.excel');
     Route::post('orders/{order}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm');
     Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+    Route::post('orders/{order}/self-pickup', [OrderController::class, 'markSelfPickedUp'])->name('orders.self-pickup');
+    Route::post('orders/{order}/type', [OrderController::class, 'updateType'])->name('orders.type.update');
     Route::post('orders/{order}/payments', [OrderPaymentController::class, 'store'])->name('orders.payments.store');
 
     // Read-only alias for Management Viewer's "Sales" nav item — reuses

@@ -87,7 +87,11 @@ class OrderController extends Controller
             $subtotal = collect($validated['items'])->sum(fn ($item) => $item['quantity'] * $item['unit_price']);
             $discountTotal = (float) ($validated['discount_total'] ?? 0);
             $taxTotal = (float) ($validated['tax_total'] ?? 0);
-            $shippingTotal = (float) ($validated['shipping_total'] ?? 0);
+            // Forced to 0 for self pickup regardless of what was submitted —
+            // the client-side toggle already clears this field, but the
+            // whole point of self pickup is skipping the delivery charge,
+            // so it's enforced server-side too rather than trusting the form.
+            $shippingTotal = $validated['order_type'] === Order::ORDER_TYPE_SELF_PICKUP ? 0.0 : (float) ($validated['shipping_total'] ?? 0);
             $total = $subtotal - $discountTotal + $taxTotal + $shippingTotal;
 
             $customer = ! empty($validated['customer_id'])
@@ -137,6 +141,7 @@ class OrderController extends Controller
                 'order_status' => Order::ORDER_STATUS_PENDING,
                 'payment_status' => $validated['payment_status'],
                 'payment_type' => $validated['payment_type'],
+                'order_type' => $validated['order_type'],
                 'delivery_status' => Order::DELIVERY_STATUS_PENDING,
                 'currency' => 'PKR',
                 'subtotal' => $subtotal,
@@ -227,6 +232,7 @@ class OrderController extends Controller
         $query = Order::query()
             ->when($request->filled('order_status'), fn ($q) => $q->where('order_status', $request->query('order_status')))
             ->when($request->filled('delivery_status'), fn ($q) => $q->where('delivery_status', $request->query('delivery_status')))
+            ->when($request->filled('order_type'), fn ($q) => $q->where('order_type', $request->query('order_type')))
             ->when($request->filled('channel_id'), fn ($q) => $q->where('channel_id', $request->query('channel_id')))
             ->when($request->filled('rider_id'), fn ($q) => $q->where('rider_id', $request->query('rider_id')))
             // Not a UI filter of its own — set by drill-through links (e.g.
@@ -394,5 +400,59 @@ class OrderController extends Controller
         $this->auditLog->log('deleted', 'orders', $order, null, ['deleted_by' => $request->user()->name]);
 
         return redirect()->route('orders.index')->with('status', "Order {$orderNumber} deleted.");
+    }
+
+    /**
+     * Self pickup's equivalent of DispatchService::markDelivered() — but
+     * there's no rider here at all, so none of that method's rider-wallet
+     * COD/earning logic applies. Landing on the same DELIVERY_STATUS_DELIVERED
+     * value (not a new status) means it's correctly counted as fulfilled
+     * everywhere that already reads that status (Dashboard KPIs, revenue,
+     * the Orders list) with no further changes needed there.
+     */
+    public function markSelfPickedUp(Order $order): RedirectResponse
+    {
+        $this->authorize('markSelfPickedUp', $order);
+
+        DB::transaction(function () use ($order) {
+            $updates = [
+                'delivery_status' => Order::DELIVERY_STATUS_DELIVERED,
+                'delivered_at' => now(),
+            ];
+
+            // Cash is collected in person at the counter when the customer
+            // picks it up — same "paid at the point of fulfillment" idea as
+            // rider-collected COD, just without a rider wallet involved.
+            // Credit orders are untouched; staff record those separately via
+            // the existing Record Payment flow.
+            if ($order->payment_type === Order::PAYMENT_TYPE_CASH) {
+                $updates['payment_status'] = Order::PAYMENT_STATUS_PAID;
+                $updates['total_outstanding'] = 0;
+            }
+
+            $order->update($updates);
+
+            $this->accounting->postCogsEntry($order);
+        });
+
+        $this->auditLog->log('self_picked_up', 'orders', $order, null, ['delivery_status' => $order->delivery_status]);
+
+        return back()->with('status', 'Order marked as picked up by the customer.');
+    }
+
+    public function updateType(Request $request, Order $order): RedirectResponse
+    {
+        $this->authorize('changeType', $order);
+
+        $validated = $request->validate([
+            'order_type' => ['required', 'in:delivery,self_pickup'],
+        ]);
+
+        $before = $order->order_type;
+        $order->update(['order_type' => $validated['order_type']]);
+
+        $this->auditLog->log('order_type_changed', 'orders', $order, ['order_type' => $before], ['order_type' => $order->order_type]);
+
+        return back()->with('status', 'Order type updated.');
     }
 }

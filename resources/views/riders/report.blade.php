@@ -54,12 +54,12 @@
                     <tr>
                         <th>Rider</th>
                         <th class="text-end">Total Orders</th>
-                        <th class="text-end">Assigned</th>
-                        <th class="text-end">Pickup</th>
-                        <th class="text-end">Out for Delivery</th>
-                        <th class="text-end">Delivered</th>
-                        <th class="text-end">Failed</th>
-                        <th class="text-end">Returned</th>
+                        <th class="text-end">Assigned <span class="fw-normal text-muted">(count/value)</span></th>
+                        <th class="text-end">Pickup <span class="fw-normal text-muted">(count/value)</span></th>
+                        <th class="text-end">Out for Delivery <span class="fw-normal text-muted">(count/value)</span></th>
+                        <th class="text-end">Delivered <span class="fw-normal text-muted">(count/value)</span></th>
+                        <th class="text-end">Failed <span class="fw-normal text-muted">(count/value)</span></th>
+                        <th class="text-end">Returned <span class="fw-normal text-muted">(count/value)</span></th>
                         <th class="text-end">Order Value</th>
                     </tr>
                 </thead>
@@ -83,45 +83,45 @@
                                 @endif
                             </td>
                             <td class="text-end">
-                                @if ($row['rider'] && $row['assigned'] > 0)
-                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'assigned']) }}">{{ $row['assigned'] }}</a>
+                                @if ($row['rider'] && $row['assigned']['count'] > 0)
+                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'assigned']) }}">{{ $row['assigned']['count'] }}/{{ number_format($row['assigned']['amount']) }}</a>
                                 @else
-                                    {{ $row['assigned'] }}
+                                    {{ $row['assigned']['count'] }}
                                 @endif
                             </td>
                             <td class="text-end">
-                                @if ($row['rider'] && $row['picked_up'] > 0)
-                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'picked_up']) }}">{{ $row['picked_up'] }}</a>
+                                @if ($row['rider'] && $row['picked_up']['count'] > 0)
+                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'picked_up']) }}">{{ $row['picked_up']['count'] }}/{{ number_format($row['picked_up']['amount']) }}</a>
                                 @else
-                                    {{ $row['picked_up'] }}
+                                    {{ $row['picked_up']['count'] }}
                                 @endif
                             </td>
                             <td class="text-end">
-                                @if ($row['rider'] && $row['out_for_delivery'] > 0)
-                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'out_for_delivery']) }}">{{ $row['out_for_delivery'] }}</a>
+                                @if ($row['rider'] && $row['out_for_delivery']['count'] > 0)
+                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'out_for_delivery']) }}">{{ $row['out_for_delivery']['count'] }}/{{ number_format($row['out_for_delivery']['amount']) }}</a>
                                 @else
-                                    {{ $row['out_for_delivery'] }}
+                                    {{ $row['out_for_delivery']['count'] }}
                                 @endif
                             </td>
                             <td class="text-end text-success">
-                                @if ($row['rider'] && $row['delivered'] > 0)
-                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'delivered']) }}">{{ $row['delivered'] }}</a>
+                                @if ($row['rider'] && $row['delivered']['count'] > 0)
+                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'delivered']) }}">{{ $row['delivered']['count'] }}/{{ number_format($row['delivered']['amount']) }}</a>
                                 @else
-                                    {{ $row['delivered'] }}
+                                    {{ $row['delivered']['count'] }}
                                 @endif
                             </td>
-                            <td class="text-end {{ $row['failed'] > 0 ? 'text-danger' : '' }}">
-                                @if ($row['rider'] && $row['failed'] > 0)
-                                    <a class="text-danger" href="{{ route('orders.index', $baseParams + ['delivery_status' => 'failed']) }}">{{ $row['failed'] }}</a>
+                            <td class="text-end {{ $row['failed']['count'] > 0 ? 'text-danger' : '' }}">
+                                @if ($row['rider'] && $row['failed']['count'] > 0)
+                                    <a class="text-danger" href="{{ route('orders.index', $baseParams + ['delivery_status' => 'failed']) }}">{{ $row['failed']['count'] }}/{{ number_format($row['failed']['amount']) }}</a>
                                 @else
-                                    {{ $row['failed'] }}
+                                    {{ $row['failed']['count'] }}
                                 @endif
                             </td>
-                            <td class="text-end {{ $row['returned'] > 0 ? 'text-warning' : '' }}">
-                                @if ($row['rider'] && $row['returned'] > 0)
-                                    <a class="text-warning" href="{{ route('orders.index', $baseParams + ['delivery_status' => 'returned']) }}">{{ $row['returned'] }}</a>
+                            <td class="text-end {{ $row['returned']['count'] > 0 ? 'text-warning' : '' }}">
+                                @if ($row['rider'] && $row['returned']['count'] > 0)
+                                    <a class="text-warning" href="{{ route('orders.index', $baseParams + ['delivery_status' => 'returned']) }}">{{ $row['returned']['count'] }}/{{ number_format($row['returned']['amount']) }}</a>
                                 @else
-                                    {{ $row['returned'] }}
+                                    {{ $row['returned']['count'] }}
                                 @endif
                             </td>
                             <td class="text-end">{{ number_format($row['total_amount'], 2) }}</td>

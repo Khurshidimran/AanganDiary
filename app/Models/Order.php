@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'shopify_order_id', 'shopify_order_number', 'channel_id', 'shopify_source_name', 'customer_id', 'customer_name', 'customer_email', 'customer_phone',
-    'billing_address', 'shipping_address', 'order_status', 'payment_status', 'payment_type', 'delivery_status',
+    'billing_address', 'shipping_address', 'order_status', 'payment_status', 'payment_type', 'order_type', 'delivery_status',
     'currency', 'subtotal', 'discount_total', 'tax_total', 'shipping_total', 'total', 'total_outstanding', 'notes', 'shopify_created_at',
     'rider_id', 'route_sequence', 'assigned_at', 'scheduled_dispatch_at', 'rider_instructions',
     'picked_up_at', 'pop_photo_path', 'pop_captured_at', 'delivered_at', 'cod_amount', 'cod_collected',
@@ -46,6 +46,9 @@ class Order extends Model
 
     public const PAYMENT_TYPE_CASH = 'cash';
     public const PAYMENT_TYPE_CREDIT = 'credit';
+
+    public const ORDER_TYPE_DELIVERY = 'delivery';
+    public const ORDER_TYPE_SELF_PICKUP = 'self_pickup';
 
     public const DELIVERY_STATUS_PENDING = 'pending';
     public const DELIVERY_STATUS_ASSIGNED = 'assigned';
@@ -199,8 +202,12 @@ class Order extends Model
     {
         // FAILED and RETURNED are both included so a dispatcher can put a
         // failed or returned delivery back into the pipeline with a
-        // different rider — neither is a dead end.
-        return $this->order_status === self::ORDER_STATUS_CONFIRMED
+        // different rider — neither is a dead end. A self-pickup order is
+        // never assignable — the Dispatch Board already excludes it
+        // entirely, but this guard blocks a direct hit on the assign
+        // endpoint too.
+        return ! $this->isSelfPickup()
+            && $this->order_status === self::ORDER_STATUS_CONFIRMED
             && in_array($this->delivery_status, [
                 self::DELIVERY_STATUS_PENDING,
                 self::DELIVERY_STATUS_ASSIGNED,
@@ -250,6 +257,33 @@ class Order extends Model
             self::DELIVERY_STATUS_ASSIGNED,
             self::DELIVERY_STATUS_PICKED_UP,
             self::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+        ], true);
+    }
+
+    public function isSelfPickup(): bool
+    {
+        return $this->order_type === self::ORDER_TYPE_SELF_PICKUP;
+    }
+
+    public function canBeMarkedSelfPickedUp(): bool
+    {
+        return $this->isSelfPickup()
+            && $this->order_status === self::ORDER_STATUS_CONFIRMED
+            && $this->delivery_status === self::DELIVERY_STATUS_PENDING;
+    }
+
+    /**
+     * Only while nothing has actually engaged a rider yet, and it isn't
+     * already completed — flipping an order to Self Pickup while a rider
+     * already has it out would strand that assignment with no way to
+     * resolve it (Self Pickup orders never appear on the Dispatch Board).
+     */
+    public function canChangeOrderType(): bool
+    {
+        return in_array($this->delivery_status, [
+            self::DELIVERY_STATUS_PENDING,
+            self::DELIVERY_STATUS_FAILED,
+            self::DELIVERY_STATUS_RETURNED,
         ], true);
     }
 }

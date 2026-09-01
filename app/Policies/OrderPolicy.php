@@ -41,4 +41,14 @@ class OrderPolicy
     {
         return $user->can('orders.delete') && $order->canBeDeleted();
     }
+
+    public function markSelfPickedUp(User $user, Order $order): bool
+    {
+        return $user->can('orders.edit') && $order->canBeMarkedSelfPickedUp();
+    }
+
+    public function changeType(User $user, Order $order): bool
+    {
+        return $user->can('orders.edit') && $order->canChangeOrderType();
+    }
 }

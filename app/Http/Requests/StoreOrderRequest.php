@@ -46,6 +46,7 @@ class StoreOrderRequest extends FormRequest
             'tax_total' => ['nullable', 'numeric', 'min:0'],
             'payment_status' => ['required', 'in:pending,paid,partially_paid'],
             'payment_type' => ['required', 'in:cash,credit'],
+            'order_type' => ['required', 'in:delivery,self_pickup'],
             'notes' => ['nullable', 'string'],
         ];
     }

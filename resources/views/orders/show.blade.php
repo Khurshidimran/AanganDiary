@@ -22,6 +22,7 @@
                     <span class="badge bg-warning text-dark">Credit</span>
                 @endif
                 <span class="badge bg-secondary">Delivery: {{ str($order->delivery_status)->headline() }}</span>
+                <span class="badge {{ $order->isSelfPickup() ? 'bg-info text-dark' : 'bg-light text-dark border' }}">{{ $order->isSelfPickup() ? 'Self Pickup' : 'Delivery' }}</span>
             </div>
         </div>
         <div class="d-flex gap-2">
@@ -30,6 +31,17 @@
                     @csrf
                     <button type="submit" class="btn btn-success btn-sm">Confirm Order</button>
                 </form>
+            @endcan
+            @can('markSelfPickedUp', $order)
+                <form method="POST" action="{{ route('orders.self-pickup', $order) }}">
+                    @csrf
+                    <button type="submit" class="btn btn-success btn-sm">Mark Picked Up by Customer</button>
+                </form>
+            @endcan
+            @can('changeType', $order)
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-change-type">
+                    Change Type
+                </button>
             @endcan
             @can('cancel', $order)
                 <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modal-cancel-order">
@@ -297,6 +309,35 @@
         </div>
     </div>
     </div>
+
+    @can('changeType', $order)
+        <div class="modal fade" id="modal-change-type" tabindex="-1">
+            <div class="modal-dialog">
+                <form method="POST" action="{{ route('orders.type.update', $order) }}" class="modal-content">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title">Change Order Type</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="order_type" id="type-delivery" value="delivery" @checked(! $order->isSelfPickup())>
+                            <label class="form-check-label" for="type-delivery">Delivery</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="order_type" id="type-self-pickup" value="self_pickup" @checked($order->isSelfPickup())>
+                            <label class="form-check-label" for="type-self-pickup">Self Pickup</label>
+                        </div>
+                        <div class="form-text mt-2">Switching to Self Pickup removes this order from the Dispatch Board — it's completed via "Mark Picked Up by Customer" instead.</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endcan
 
     @can('cancel', $order)
         <div class="modal fade" id="modal-cancel-order" tabindex="-1">

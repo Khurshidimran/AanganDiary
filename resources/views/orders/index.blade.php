@@ -32,6 +32,14 @@
             </select>
         </div>
         <div class="col-md-2">
+            <label class="form-label small text-muted mb-1">Order Type</label>
+            <select name="order_type" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Order Types</option>
+                <option value="delivery" @selected(request('order_type') === 'delivery')>Delivery</option>
+                <option value="self_pickup" @selected(request('order_type') === 'self_pickup')>Self Pickup</option>
+            </select>
+        </div>
+        <div class="col-md-2">
             <label class="form-label small text-muted mb-1">Channel</label>
             <select name="channel_id" class="form-select form-select-sm" onchange="this.form.submit()">
                 <option value="">All Channels</option>
@@ -140,6 +148,7 @@
                             </a>
                         </th>
                         <th>Order Status</th>
+                        <th>Order Type</th>
                         <th>Delivery Status</th>
                         <th>Delivered Date/Time</th>
                         <th>Payment Status</th>
@@ -174,6 +183,7 @@
                                     default => 'bg-secondary',
                                 } }}">{{ ucfirst($order->order_status) }}</span>
                             </td>
+                            <td><span class="badge {{ $order->isSelfPickup() ? 'bg-info text-dark' : 'bg-light text-dark border' }}">{{ $order->isSelfPickup() ? 'Self Pickup' : 'Delivery' }}</span></td>
                             <td><span class="badge bg-secondary">{{ str($order->delivery_status)->headline() }}</span></td>
                             <td>{{ $order->delivered_at?->format('Y-m-d h:i A') ?? '—' }}</td>
                             <td>
@@ -194,7 +204,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="20" class="text-center text-muted py-4">No orders found.</td>
+                            <td colspan="21" class="text-center text-muted py-4">No orders found.</td>
                         </tr>
                     @endforelse
                 </tbody>

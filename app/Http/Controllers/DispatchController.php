@@ -31,6 +31,11 @@ class DispatchController extends Controller
         $dateTo = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : today()->endOfDay();
 
         $orders = Order::with(['items', 'rider.user', 'rider.warehouse'])
+            // The Dispatch Board is rider-delivery operations — a self
+            // pickup order never has a rider at any point in its life and
+            // is completed through its own separate action, so it never
+            // belongs here, in any status bucket including "delivered."
+            ->where('order_type', '!=', Order::ORDER_TYPE_SELF_PICKUP)
             ->where(function ($query) use ($dateFrom, $dateTo) {
                 $query
                     // Delivered is historical record — "what got completed in
