@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['rider_id', 'latitude', 'longitude', 'accuracy_meters', 'recorded_at'])]
 class RiderLocationPing extends Model
 {
-    use HasUuid;
+    use HasUuid, HasLocalizedTimestamps;
 
     protected function casts(): array
     {

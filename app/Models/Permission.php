@@ -3,9 +3,10 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Spatie\Permission\Models\Permission as SpatiePermission;
 
 class Permission extends SpatiePermission
 {
-    use HasUuid;
+    use HasUuid, HasLocalizedTimestamps;
 }

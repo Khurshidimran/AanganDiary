@@ -161,7 +161,7 @@ class DispatchController extends Controller
             $order,
             $rider,
             $validated['rider_instructions'] ?? null,
-            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at'], 'Asia/Karachi') : null,
         );
 
         $this->auditLog->log('assigned', 'orders', $order, null, ['rider_id' => $rider->id, 'rider_name' => $rider->user->name]);
@@ -300,7 +300,7 @@ class DispatchController extends Controller
         $this->dispatch->markFailed(
             $order,
             $validated['reason'],
-            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at'], 'Asia/Karachi') : null,
         );
         $this->auditLog->log('delivery_failed', 'orders', $order, null, ['reason' => $validated['reason']]);
 
@@ -323,7 +323,7 @@ class DispatchController extends Controller
         $this->dispatch->markReturned(
             $order,
             $validated['reason'],
-            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at'], 'Asia/Karachi') : null,
         );
 
         $this->auditLog->log('returned', 'orders', $order, null, ['delivery_status' => $order->delivery_status, 'reason' => $validated['reason']]);

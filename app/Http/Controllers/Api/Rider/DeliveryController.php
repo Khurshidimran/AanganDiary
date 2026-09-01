@@ -125,7 +125,7 @@ class DeliveryController extends Controller
         $this->dispatch->markFailed(
             $order,
             $validated['reason'],
-            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at'], 'Asia/Karachi') : null,
         );
 
         return new OrderResource($order->fresh('items'));
@@ -144,7 +144,7 @@ class DeliveryController extends Controller
         $this->dispatch->markReturned(
             $order,
             $validated['reason'],
-            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at']) : null,
+            isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at'], 'Asia/Karachi') : null,
         );
 
         return new OrderResource($order->fresh('items'));

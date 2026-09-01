@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,7 +22,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Order extends Model
 {
-    use HasUuid, SoftDeletes;
+    use HasUuid, HasLocalizedTimestamps, SoftDeletes;
+
+    /**
+     * shopify_created_at is sourced straight from Shopify's own payload and
+     * has always been stored as raw Pakistan wall-clock digits (its
+     * "+05:00" offset silently discarded, never actually converted to
+     * UTC) — years of existing rows already rely on that. Excluded here so
+     * it keeps behaving exactly as it always has; every other datetime on
+     * this model (assigned_at, picked_up_at, delivered_at, etc.) is
+     * genuinely UTC and gets the normal conversion.
+     */
+    protected array $timezoneExempt = ['shopify_created_at'];
 
     public const ORDER_STATUS_PENDING = 'pending';
     public const ORDER_STATUS_CONFIRMED = 'confirmed';

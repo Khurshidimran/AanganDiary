@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable(['code', 'name', 'type', 'parent_id', 'is_system', 'status'])]
 class Account extends Model
 {
-    use HasUuid, SoftDeletes;
+    use HasUuid, HasLocalizedTimestamps, SoftDeletes;
 
     public const TYPE_ASSET = 'asset';
     public const TYPE_LIABILITY = 'liability';

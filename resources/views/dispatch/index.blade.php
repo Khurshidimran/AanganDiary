@@ -173,7 +173,7 @@
                             </div>
 
                             <div class="d-flex gap-3 text-muted small mb-2">
-                                <span><i class="bi bi-clock"></i> {{ $order->shopify_created_at?->format('h:i A') }}</span>
+                                <span><i class="bi bi-clock"></i> {{ $order->shopify_created_at?->format('M j, h:i A') }}</span>
                                 <span><i class="bi bi-box-seam"></i> {{ $itemCount }} item{{ $itemCount === 1 ? '' : 's' }}</span>
                             </div>
 
@@ -246,7 +246,7 @@
                                         </button>
                                         <div class="collapse mt-2 {{ $order->scheduled_dispatch_at ? 'show' : '' }}" id="opts-{{ $order->id }}">
                                             <input type="datetime-local" name="scheduled_dispatch_at"
-                                                   value="{{ ($order->scheduled_dispatch_at ?? now()->addDay()->setTime(8, 0))->format('Y-m-d\TH:i') }}"
+                                                   value="{{ ($order->scheduled_dispatch_at ?? now('Asia/Karachi')->addDay()->setTime(8, 0))->format('Y-m-d\TH:i') }}"
                                                    class="form-control form-control-sm" title="Scheduled dispatch date/time — pre-filled from any date promised when this order was marked failed/returned, adjust if needed">
                                         </div>
                                     </form>
@@ -296,7 +296,7 @@
                                     <div class="small text-muted">
                                         <i class="bi bi-check-circle text-success"></i>
                                         Delivered by {{ $order->rider?->user->name ?? '—' }}
-                                        @if ($order->delivered_at) at {{ $order->delivered_at->format('h:i A') }} @endif
+                                        @if ($order->delivered_at) at {{ $order->delivered_at->format('M j, h:i A') }} @endif
                                     </div>
                                 @elseif ($order->delivery_status === 'returned')
                                     <div class="small text-muted">

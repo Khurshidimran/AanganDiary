@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['purchase_order_id', 'product_variant_id', 'quantity_ordered', 'quantity_received', 'unit_cost'])]
 class PurchaseOrderItem extends Model
 {
-    use HasUuid;
+    use HasUuid, HasLocalizedTimestamps;
 
     protected function casts(): array
     {

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class ShopifySyncLog extends Model
 {
-    use HasUuid;
+    use HasUuid, HasLocalizedTimestamps;
 
     public const TYPE_PRODUCTS_IMPORT = 'products_import';
     public const TYPE_INVENTORY_PUSH = 'inventory_push';

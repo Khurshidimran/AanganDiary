@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['period_start', 'period_end', 'status', 'generated_by', 'approved_by', 'approved_at', 'paid_at', 'notes'])]
 class PayrollRun extends Model
 {
-    use HasUuid;
+    use HasUuid, HasLocalizedTimestamps;
 
     public const STATUS_DRAFT = 'draft';
     public const STATUS_APPROVED = 'approved';

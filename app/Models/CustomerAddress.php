@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable(['customer_id', 'label', 'address1', 'address2', 'city', 'country', 'phone', 'is_default', 'latitude', 'longitude'])]
 class CustomerAddress extends Model
 {
-    use HasUuid, SoftDeletes;
+    use HasUuid, HasLocalizedTimestamps, SoftDeletes;
 
     protected function casts(): array
     {

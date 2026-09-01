@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['employee_id', 'amount', 'date_given', 'reason', 'remaining_balance', 'status', 'recorded_by'])]
 class EmployeeAdvance extends Model
 {
-    use HasUuid;
+    use HasUuid, HasLocalizedTimestamps;
 
     public const STATUS_ACTIVE = 'active';
     public const STATUS_SETTLED = 'settled';

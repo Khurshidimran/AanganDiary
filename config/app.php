@@ -60,8 +60,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | will be used by the PHP date and date-time functions — this governs
+    | now() and how a naive datetime string read back from the database is
+    | interpreted, so it must stay UTC: every table stores true UTC.
+    | Displaying Pakistan local time on top of that happens per-attribute,
+    | via HasLocalizedTimestamps (see app/Models/Concerns/) — not here.
     |
     */
 

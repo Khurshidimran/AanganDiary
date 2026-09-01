@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable(['parent_id', 'name', 'slug', 'status'])]
 class Category extends Model
 {
-    use HasUuid, SoftDeletes;
+    use HasUuid, HasLocalizedTimestamps, SoftDeletes;
 
     public function parent(): BelongsTo
     {

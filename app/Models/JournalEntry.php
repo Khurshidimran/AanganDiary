@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasLocalizedTimestamps;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class JournalEntry extends Model
 {
-    use HasUuid;
+    use HasUuid, HasLocalizedTimestamps;
 
     public const TYPE_JOURNAL = 'journal';
     public const TYPE_CASH_PAYMENT = 'cash_payment';
