@@ -64,6 +64,14 @@ class RiderAccountController extends Controller
 
         $stats = $this->settlement->operationalStats($rider, $from, $to);
         $financials = $this->settlement->financials($rider, $from, $to);
+        // Cash Deposit / Pay Rider are real money movements against the
+        // rider's true current balance — always all-time, regardless of
+        // whatever reporting period is selected elsewhere on this page.
+        // Without this, e.g. viewing the default "Today" period would show
+        // and validate a deposit against only today's activity, silently
+        // rejecting an amount that matches what's on screen if the rider
+        // has any older un-deposited cash affecting the real total.
+        $allTimeFinancials = $this->settlement->financials($rider);
         $paymentStatus = $this->settlement->earningsPaymentStatus($rider, $from, $to);
 
         $cashTransactions = $rider->walletTransactions()
@@ -101,7 +109,7 @@ class RiderAccountController extends Controller
             ->withQueryString();
 
         return view('riders.account.index', compact(
-            'rider', 'stats', 'financials', 'paymentStatus', 'attempts',
+            'rider', 'stats', 'financials', 'allTimeFinancials', 'paymentStatus', 'attempts',
             'cashTransactions', 'cashOrderNumbers', 'earningsAttempts', 'trips',
             'preset', 'from', 'to',
         ));

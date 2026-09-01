@@ -113,6 +113,7 @@ class RolePermissionSeeder extends Seeder
             'dispatch.view', 'dispatch.manage',
             'rider_wallet.view', 'rider_wallet.manage',
             'monitoring.view',
+            'expense_categories.view', 'expenses.view',
         ]);
 
         Role::findByName('Warehouse Manager')->syncPermissions([

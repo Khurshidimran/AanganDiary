@@ -8,13 +8,13 @@
             </div>
             <div class="modal-body">
                 <div class="d-flex justify-content-between small text-muted mb-3 pb-2 border-bottom">
-                    <span>Current Earnings Payable</span>
-                    <span class="fw-semibold text-dark">Rs. {{ number_format($financials['earnings_payable'], 2) }}</span>
+                    <span>Current Earnings Payable <span class="text-muted">(all time)</span></span>
+                    <span class="fw-semibold text-dark">Rs. {{ number_format($allTimeFinancials['earnings_payable'], 2) }}</span>
                 </div>
 
                 <div class="mb-2">
                     <label class="form-label small">Payment Amount *</label>
-                    <input type="number" step="0.01" min="0.01" max="{{ $financials['earnings_payable'] }}"
+                    <input type="number" step="0.01" min="0.01" max="{{ $allTimeFinancials['earnings_payable'] }}"
                            name="amount" id="pay-amount" class="form-control @error('amount') is-invalid @enderror"
                            value="{{ old('amount') }}" required>
                     @error('amount') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -45,7 +45,7 @@
 
                 <div class="d-flex justify-content-between small border-top pt-2 mt-3">
                     <span>Remaining Earnings Payable</span>
-                    <span class="fw-semibold" id="pay-remaining">Rs. {{ number_format($financials['earnings_payable'], 2) }}</span>
+                    <span class="fw-semibold" id="pay-remaining">Rs. {{ number_format($allTimeFinancials['earnings_payable'], 2) }}</span>
                 </div>
             </div>
             <div class="modal-footer">
@@ -59,7 +59,7 @@
 @push('scripts')
     <script>
         (function () {
-            var payable = {{ (float) $financials['earnings_payable'] }};
+            var payable = {{ (float) $allTimeFinancials['earnings_payable'] }};
             var amountInput = document.getElementById('pay-amount');
             var remainingEl = document.getElementById('pay-remaining');
 

@@ -8,13 +8,13 @@
             </div>
             <div class="modal-body">
                 <div class="d-flex justify-content-between small text-muted mb-3 pb-2 border-bottom">
-                    <span>Current Cash to Hand In</span>
-                    <span class="fw-semibold text-dark">Rs. {{ number_format($financials['cash_to_hand_in'], 2) }}</span>
+                    <span>Current Cash to Hand In <span class="text-muted">(all time)</span></span>
+                    <span class="fw-semibold text-dark">Rs. {{ number_format($allTimeFinancials['cash_to_hand_in'], 2) }}</span>
                 </div>
 
                 <div class="mb-2">
                     <label class="form-label small">Amount *</label>
-                    <input type="number" step="0.01" min="0.01" max="{{ $financials['cash_to_hand_in'] }}"
+                    <input type="number" step="0.01" min="0.01" max="{{ $allTimeFinancials['cash_to_hand_in'] }}"
                            name="amount" id="deposit-amount" class="form-control @error('amount') is-invalid @enderror"
                            value="{{ old('amount') }}" required>
                     @error('amount') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -45,7 +45,7 @@
 
                 <div class="d-flex justify-content-between small border-top pt-2 mt-3">
                     <span>Remaining Balance</span>
-                    <span class="fw-semibold" id="deposit-remaining">Rs. {{ number_format($financials['cash_to_hand_in'], 2) }}</span>
+                    <span class="fw-semibold" id="deposit-remaining">Rs. {{ number_format($allTimeFinancials['cash_to_hand_in'], 2) }}</span>
                 </div>
             </div>
             <div class="modal-footer">
@@ -59,7 +59,7 @@
 @push('scripts')
     <script>
         (function () {
-            var outstanding = {{ (float) $financials['cash_to_hand_in'] }};
+            var outstanding = {{ (float) $allTimeFinancials['cash_to_hand_in'] }};
             var amountInput = document.getElementById('deposit-amount');
             var remainingEl = document.getElementById('deposit-remaining');
 
