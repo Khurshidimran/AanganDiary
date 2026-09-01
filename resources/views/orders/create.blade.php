@@ -42,6 +42,7 @@
                         <label for="payment_type" class="form-label">Payment Type</label>
                         <select id="payment_type" name="payment_type" class="form-select @error('payment_type') is-invalid @enderror">
                             <option value="cash" @selected(old('payment_type', 'cash') === 'cash')>Cash / COD</option>
+                            <option value="online" @selected(old('payment_type') === 'online')>Online Transfer</option>
                             <option value="credit" @selected(old('payment_type') === 'credit')>Credit (pay later)</option>
                         </select>
                         <div class="form-text">Credit orders appear on the Receivables Aging report until fully paid.</div>

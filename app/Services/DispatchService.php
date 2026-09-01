@@ -276,15 +276,24 @@ class DispatchService
 
             $rider = $this->currentRider($order);
 
+            // An Online Transfer order is paid straight into the business's
+            // own bank account at the delivery spot — the rider never
+            // physically holds that money, so crediting their wallet as if
+            // they collected cash would misrepresent what they're actually
+            // holding. Still marked collected for tracking; just no wallet
+            // transaction backing it.
             if ((float) $order->cod_amount > 0) {
-                $this->wallet->postTransaction(
-                    rider: $rider,
-                    transactionType: RiderWalletTransaction::TYPE_COD_COLLECTED,
-                    amount: (float) $order->cod_amount,
-                    referenceType: 'orders',
-                    referenceId: $order->id,
-                    notes: "COD collected for order #{$order->shopify_order_number}",
-                );
+                if ($order->payment_type !== Order::PAYMENT_TYPE_ONLINE) {
+                    $this->wallet->postTransaction(
+                        rider: $rider,
+                        transactionType: RiderWalletTransaction::TYPE_COD_COLLECTED,
+                        amount: (float) $order->cod_amount,
+                        referenceType: 'orders',
+                        referenceId: $order->id,
+                        notes: "COD collected for order #{$order->shopify_order_number}",
+                    );
+                }
+
                 $order->update(['cod_collected' => true]);
             }
 

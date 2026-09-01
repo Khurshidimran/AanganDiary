@@ -20,6 +20,8 @@
                 } }}">Payment: {{ str($order->payment_status)->headline() }}</span>
                 @if ($order->payment_type === 'credit')
                     <span class="badge bg-warning text-dark">Credit</span>
+                @elseif ($order->payment_type === 'online')
+                    <span class="badge bg-primary">Online Transfer</span>
                 @endif
                 <span class="badge bg-secondary">Delivery: {{ str($order->delivery_status)->headline() }}</span>
                 <span class="badge {{ $order->isSelfPickup() ? 'bg-info text-dark' : 'bg-light text-dark border' }}">{{ $order->isSelfPickup() ? 'Self Pickup' : 'Delivery' }}</span>

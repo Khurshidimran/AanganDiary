@@ -46,6 +46,7 @@ class Order extends Model
 
     public const PAYMENT_TYPE_CASH = 'cash';
     public const PAYMENT_TYPE_CREDIT = 'credit';
+    public const PAYMENT_TYPE_ONLINE = 'online';
 
     public const ORDER_TYPE_DELIVERY = 'delivery';
     public const ORDER_TYPE_SELF_PICKUP = 'self_pickup';

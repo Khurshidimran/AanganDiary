@@ -420,12 +420,13 @@ class OrderController extends Controller
                 'delivered_at' => now(),
             ];
 
-            // Cash is collected in person at the counter when the customer
-            // picks it up — same "paid at the point of fulfillment" idea as
-            // rider-collected COD, just without a rider wallet involved.
-            // Credit orders are untouched; staff record those separately via
-            // the existing Record Payment flow.
-            if ($order->payment_type === Order::PAYMENT_TYPE_CASH) {
+            // Cash or Online Transfer is settled in person at the counter
+            // when the customer picks it up — same "paid at the point of
+            // fulfillment" idea as rider-collected COD, just without a
+            // rider wallet involved either way. Credit orders are
+            // untouched; staff record those separately via the existing
+            // Record Payment flow.
+            if (in_array($order->payment_type, [Order::PAYMENT_TYPE_CASH, Order::PAYMENT_TYPE_ONLINE], true)) {
                 $updates['payment_status'] = Order::PAYMENT_STATUS_PAID;
                 $updates['total_outstanding'] = 0;
             }
