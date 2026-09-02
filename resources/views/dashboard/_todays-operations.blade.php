@@ -1,8 +1,7 @@
 @canany(['dispatch.view', 'riders.view'])
     <div class="card shadow-sm mb-3">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div class="card-header bg-white">
             <span class="fw-semibold">Today's Delivery Operations</span>
-            <a href="{{ route('monitoring.index') }}" class="small">View full Live Monitoring <i class="bi bi-arrow-right"></i></a>
         </div>
         <div class="card-body">
             @can('dispatch.view')

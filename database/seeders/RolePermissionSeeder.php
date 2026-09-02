@@ -48,7 +48,6 @@ class RolePermissionSeeder extends Seeder
         'riders.view', 'riders.create', 'riders.edit', 'riders.delete',
         'dispatch.view', 'dispatch.manage',
         'rider_wallet.view', 'rider_wallet.manage',
-        'monitoring.view',
         'employees.view', 'employees.create', 'employees.edit', 'employees.delete',
         'employee_advances.view', 'employee_advances.create', 'employee_advances.edit',
         'payroll.view', 'payroll.generate', 'payroll.approve', 'payroll.pay',
@@ -95,7 +94,6 @@ class RolePermissionSeeder extends Seeder
             'riders.view', 'riders.create', 'riders.edit', 'riders.delete',
             'dispatch.view', 'dispatch.manage',
             'rider_wallet.view', 'rider_wallet.manage',
-            'monitoring.view',
             'employees.view', 'employees.create', 'employees.edit', 'employees.delete',
             'employee_advances.view', 'employee_advances.create', 'employee_advances.edit',
             'payroll.view', 'payroll.generate', 'payroll.approve', 'payroll.pay',
@@ -112,7 +110,6 @@ class RolePermissionSeeder extends Seeder
             'riders.view', 'riders.create', 'riders.edit',
             'dispatch.view', 'dispatch.manage',
             'rider_wallet.view', 'rider_wallet.manage',
-            'monitoring.view',
             'expense_categories.view', 'expenses.view',
         ]);
 

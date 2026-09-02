@@ -246,7 +246,7 @@ class DashboardController extends Controller
                 'message' => "{$codRidersCount} rider".($codRidersCount === 1 ? '' : 's')." holding uncollected COD (Rs. ".number_format($codTotal, 2).' total)',
                 'action' => 'Review',
                 'permission' => 'rider_wallet.view',
-                'route' => route('monitoring.index'),
+                'route' => route('riders.index'),
             ];
         }
 
@@ -265,10 +265,6 @@ class DashboardController extends Controller
     }
 
     /**
-     * Always live — reuses MonitoringController's own today-scoped queries
-     * verbatim rather than re-deriving slightly-different SQL, so this
-     * panel and the Monitoring page never quietly drift out of sync.
-     *
      * @return array<string, mixed>
      */
     private function todaysOperations(): array

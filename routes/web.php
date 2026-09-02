@@ -15,7 +15,6 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\JournalEntryController;
-use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderPaymentController;
@@ -44,7 +43,6 @@ Route::get('/', fn () => redirect()->route(auth()->check() ? 'dashboard' : 'logi
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
 
     Route::resource('users', UserController::class)->except(['show']);
     Route::resource('roles', RoleController::class)->except(['show']);

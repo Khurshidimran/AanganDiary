@@ -35,13 +35,6 @@
                         <i class="bi bi-speedometer2 me-2"></i> Dashboard
                     </a>
                 </li>
-                @can('monitoring.view')
-                    <li class="nav-item">
-                        <a href="{{ route('monitoring.index') }}" class="nav-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}">
-                            <i class="bi bi-broadcast me-2"></i> Live Monitoring
-                        </a>
-                    </li>
-                @endcan
                 @can('orders.view')
                     <li class="nav-section-title">Orders</li>
                     <li class="nav-item">
