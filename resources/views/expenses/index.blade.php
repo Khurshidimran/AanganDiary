@@ -67,6 +67,7 @@
                         <th class="text-end">Amount</th>
                         <th>Payment Method</th>
                         <th>Reference</th>
+                        <th>Notes</th>
                         <th>Recorded By</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -80,6 +81,7 @@
                             <td class="text-end">{{ number_format($expense->amount, 2) }}</td>
                             <td><span class="badge bg-secondary">{{ str($expense->payment_method)->headline() }}</span></td>
                             <td>{{ $expense->reference_number ?? '—' }}</td>
+                            <td>{{ $expense->notes ?? '—' }}</td>
                             <td>{{ $expense->recordedBy?->name ?? '—' }}</td>
                             <td class="text-end">
                                 @can('update', $expense)
@@ -101,7 +103,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">No expenses found.</td>
+                            <td colspan="9" class="text-center text-muted py-4">No expenses found.</td>
                         </tr>
                     @endforelse
                 </tbody>

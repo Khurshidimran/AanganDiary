@@ -65,6 +65,63 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * How many orders (and what value) are actually getting delivered, seen
+     * through three different date lenses over the same period — order date
+     * ("of what we took in this window, how much has since been
+     * delivered"), dispatch date ("of what we handed to a rider this
+     * window, how much has since been delivered"), and delivery date ("how
+     * much actually got delivered during this window, regardless of when it
+     * was placed or dispatched"). The first two are conversion figures (a
+     * total-vs-delivered pair); delivery date is inherently just the
+     * delivered bucket, since an undelivered order has no delivered_at to
+     * match against.
+     */
+    public function deliveryReport(Request $request): View
+    {
+        $this->authorize('viewAny', Order::class);
+
+        $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : now()->startOfMonth();
+        $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : now()->endOfDay();
+
+        // A cancelled order was never really "in play" for delivery
+        // purposes — excluded from every bucket's denominator, same
+        // convention RiderController::report() already uses.
+        $notCancelled = fn (Builder $q) => $q->where('order_status', '!=', Order::ORDER_STATUS_CANCELLED);
+
+        $conversionBucket = function (string $dateColumn) use ($dateFrom, $dateTo, $notCancelled) {
+            $base = $notCancelled(Order::whereBetween($dateColumn, [$dateFrom, $dateTo]));
+
+            $totalCount = (clone $base)->count();
+            $totalValue = (clone $base)->sum('total');
+            $deliveredCount = (clone $base)->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)->count();
+            $deliveredValue = (clone $base)->where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)->sum('total');
+
+            return [
+                'total_count' => $totalCount,
+                'total_value' => $totalValue,
+                'delivered_count' => $deliveredCount,
+                'delivered_value' => $deliveredValue,
+                'rate' => $totalCount > 0 ? round($deliveredCount / $totalCount * 100, 1) : null,
+            ];
+        };
+
+        $deliveredInWindow = $notCancelled(Order::whereBetween('delivered_at', [$dateFrom, $dateTo]));
+
+        $rows = [
+            'order_date' => ['label' => 'By Order Date', 'hint' => 'Orders placed in this window'] + $conversionBucket('shopify_created_at'),
+            'dispatch_date' => ['label' => 'By Dispatch Date', 'hint' => 'Orders assigned to a rider in this window'] + $conversionBucket('assigned_at'),
+            'delivery_date' => [
+                'label' => 'By Delivery Date',
+                'hint' => 'Orders actually delivered in this window, regardless of when placed or dispatched',
+                'delivered_count' => (clone $deliveredInWindow)->count(),
+                'delivered_value' => (clone $deliveredInWindow)->sum('total'),
+            ],
+        ];
+
+        return view('orders.delivery-report', compact('rows', 'dateFrom', 'dateTo'));
+    }
+
     public function create(): View
     {
         $this->authorize('create', Order::class);

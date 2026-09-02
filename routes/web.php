@@ -81,6 +81,9 @@ Route::middleware('auth')->group(function () {
     // Registered before the orders resource so this literal path takes
     // priority over the resource's GET orders/{order} wildcard match.
     Route::get('orders/print-labels', [OrderController::class, 'bulkLabels'])->name('orders.labels.bulk');
+    // Registered before the orders resource so this literal path takes
+    // priority over the resource's GET orders/{order} wildcard match.
+    Route::get('orders/delivery-report', [OrderController::class, 'deliveryReport'])->name('orders.delivery-report');
 
     Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');
     Route::resource('customers', CustomerController::class)->except(['show']);

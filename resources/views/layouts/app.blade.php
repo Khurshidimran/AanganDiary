@@ -63,6 +63,11 @@
                             </a>
                         </li>
                     @endcan
+                    <li class="nav-item">
+                        <a href="{{ route('orders.delivery-report') }}" class="nav-link {{ request()->routeIs('orders.delivery-report') ? 'active' : '' }}">
+                            <i class="bi bi-graph-up-arrow me-2"></i> Delivery Report
+                        </a>
+                    </li>
                 @endcan
 
                 @canany(['dispatch.view', 'riders.view'])
