@@ -10,6 +10,7 @@ class ExpenseCategorySeeder extends Seeder
     private const CATEGORIES = [
         'Rent', 'Utilities', 'Fuel & Transport', 'Maintenance & Repairs',
         'Office Supplies', 'Marketing & Advertising', 'Packaging Material', 'Miscellaneous',
+        'Bill', 'Mobile', 'Water', 'Salaries',
     ];
 
     public function run(): void

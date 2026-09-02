@@ -18,9 +18,14 @@ class ChartOfAccountsSeeder extends Seeder
         ['1020', 'Bank Account', 'asset', '1000', true],
         ['1100', 'Accounts Receivable', 'asset', '1000', true],
         ['1200', 'Inventory Asset', 'asset', '1000', true],
+        ['1300', 'Purchases', 'asset', '1000', false],
+        ['1310', 'Dairy', 'asset', '1300', false],
+        ['1320', 'Packing', 'asset', '1300', false],
         ['2000', 'Liabilities', 'liability', null, true],
         ['2100', 'Accounts Payable', 'liability', '2000', true],
-        ['2200', 'Salaries Payable', 'liability', '2000', true],
+        ['2500', 'Payable', 'liability', '2000', false],
+        ['2200', 'Salaries Payable', 'liability', '2500', true],
+        ['2520', 'Rent Payable', 'liability', '2500', false],
         ['2300', 'Tax Payable', 'liability', '2000', true],
         ['2400', 'Payroll Deductions Clearing', 'liability', '2000', true],
         ['3000', 'Equity', 'equity', null, true],
@@ -32,6 +37,13 @@ class ChartOfAccountsSeeder extends Seeder
         ['5100', 'Cost of Goods Sold', 'expense', '5000', true],
         ['5200', 'Salaries & Wages Expense', 'expense', '5000', true],
         ['5990', 'Miscellaneous Expense', 'expense', '5000', false],
+        ['6000', 'Direct Expenses', 'expense', '5000', false],
+        ['6010', 'Fuel & Transport', 'expense', '6000', false],
+        ['6020', 'Bill', 'expense', '6000', false],
+        ['6030', 'Mobile', 'expense', '6000', false],
+        ['6040', 'Water', 'expense', '6000', false],
+        ['6100', 'Indirect Expenses', 'expense', '5000', false],
+        ['6110', 'Packaging Material', 'expense', '6100', false],
     ];
 
     private const DEFAULT_MAPPING = [
@@ -67,7 +79,21 @@ class ChartOfAccountsSeeder extends Seeder
             );
         }
 
-        // One expense account per existing expense category, linked back so
+        $categoryAccountCodes = [
+            'Fuel & Transport' => '6010',
+            'Bill' => '6020',
+            'Mobile' => '6030',
+            'Water' => '6040',
+            'Packaging Material' => '6110',
+            'Rent' => '2520',
+            'Salaries' => '2200',
+        ];
+
+        foreach ($categoryAccountCodes as $categoryName => $code) {
+            ExpenseCategory::where('name', $categoryName)->update(['chart_account_id' => $byCode[$code]->id]);
+        }
+
+        // One expense account per remaining expense category, linked back so
         // expense postings have a sensible default from day one.
         $expenseParent = $byCode['5000'];
         $nextCode = 5300;
