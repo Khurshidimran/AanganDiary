@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Rider;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
+use App\Services\AuditLogService;
 use App\Services\DispatchService;
 use Carbon\Carbon;
 use Closure;
@@ -15,8 +16,10 @@ use Illuminate\Support\Collection;
 
 class DeliveryController extends Controller
 {
-    public function __construct(private readonly DispatchService $dispatch)
-    {
+    public function __construct(
+        private readonly DispatchService $dispatch,
+        private readonly AuditLogService $auditLog,
+    ) {
     }
 
     public function index(Request $request): AnonymousResourceCollection
@@ -57,6 +60,7 @@ class DeliveryController extends Controller
             : null;
 
         $this->dispatch->markPickedUp($order, $photoPath);
+        $this->auditLog->log('picked_up', 'orders', $order, null, ['delivery_status' => $order->delivery_status]);
 
         return new OrderResource($order->fresh('items'));
     }
@@ -68,6 +72,7 @@ class DeliveryController extends Controller
         abort_unless($order->canBeMarkedOutForDelivery(), 422, 'This order has not been picked up yet.');
 
         $this->dispatch->markOutForDelivery($order);
+        $this->auditLog->log('out_for_delivery', 'orders', $order, null, ['delivery_status' => $order->delivery_status]);
 
         return new OrderResource($order->fresh('items'));
     }
@@ -79,7 +84,7 @@ class DeliveryController extends Controller
             'order_ids.*' => ['string'],
         ]);
 
-        return $this->bulkTransition($request, $validated['order_ids'], fn (Collection $orders) => $this->dispatch->markManyPickedUp($orders));
+        return $this->bulkTransition($request, $validated['order_ids'], fn (Collection $orders) => $this->dispatch->markManyPickedUp($orders), 'picked_up');
     }
 
     public function bulkOutForDelivery(Request $request): JsonResponse
@@ -89,7 +94,7 @@ class DeliveryController extends Controller
             'order_ids.*' => ['string'],
         ]);
 
-        return $this->bulkTransition($request, $validated['order_ids'], fn (Collection $orders) => $this->dispatch->markManyOutForDelivery($orders));
+        return $this->bulkTransition($request, $validated['order_ids'], fn (Collection $orders) => $this->dispatch->markManyOutForDelivery($orders), 'out_for_delivery');
     }
 
     public function delivered(Request $request, Order $order): OrderResource
@@ -108,6 +113,7 @@ class DeliveryController extends Controller
         $signaturePath = $request->hasFile('signature') ? $request->file('signature')->store($directory, 'public') : null;
 
         $this->dispatch->markDelivered($order, $photoPath, $signaturePath);
+        $this->auditLog->log('delivered', 'orders', $order, null, ['delivery_status' => $order->delivery_status]);
 
         return new OrderResource($order->fresh('items'));
     }
@@ -127,6 +133,7 @@ class DeliveryController extends Controller
             $validated['reason'],
             isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at'], 'Asia/Karachi') : null,
         );
+        $this->auditLog->log('delivery_failed', 'orders', $order, null, ['reason' => $validated['reason']]);
 
         return new OrderResource($order->fresh('items'));
     }
@@ -146,6 +153,7 @@ class DeliveryController extends Controller
             $validated['reason'],
             isset($validated['scheduled_dispatch_at']) ? Carbon::parse($validated['scheduled_dispatch_at'], 'Asia/Karachi') : null,
         );
+        $this->auditLog->log('returned', 'orders', $order, null, ['delivery_status' => $order->delivery_status, 'reason' => $validated['reason']]);
 
         return new OrderResource($order->fresh('items'));
     }
@@ -205,7 +213,7 @@ class DeliveryController extends Controller
      *
      * @param  list<string>  $requestedIds
      */
-    private function bulkTransition(Request $request, array $requestedIds, Closure $transition): JsonResponse
+    private function bulkTransition(Request $request, array $requestedIds, Closure $transition, string $auditAction): JsonResponse
     {
         $riderId = $request->user()->riderProfile->id;
         $found = Order::whereIn('id', $requestedIds)->get()->keyBy('id');
@@ -226,6 +234,10 @@ class DeliveryController extends Controller
         }
 
         $result = $transition($owned);
+
+        foreach ($result['succeeded'] as $order) {
+            $this->auditLog->log($auditAction, 'orders', $order, null, ['delivery_status' => $order->delivery_status]);
+        }
 
         foreach ($result['skipped'] as $entry) {
             $skipped[] = ['id' => $entry['order']->id, 'reason' => $entry['reason']];

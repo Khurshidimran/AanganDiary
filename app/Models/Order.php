@@ -129,6 +129,20 @@ class Order extends Model
     }
 
     /**
+     * Who actually performed a given status-change action, most recently —
+     * distinct from the assigned rider's name, since a dispatch manager can
+     * mark a status update on a rider's behalf from the web board just as
+     * easily as the rider can from their own app. Assumes auditLogs is
+     * already eager-loaded (oldest-first — see above), so ->last() is the
+     * most recent matching entry; returns null if none exists (e.g. an
+     * order from before this attribution existed).
+     */
+    public function actionPerformedBy(string $action): ?string
+    {
+        return $this->auditLogs->where('action', $action)->last()?->user?->name;
+    }
+
+    /**
      * Manually-entered orders (phone/WhatsApp/etc.) get a synthetic
      * shopify_order_id (that column is NOT NULL + UNIQUE with no default) —
      * this is how the rest of the app tells the two apart, e.g. to skip

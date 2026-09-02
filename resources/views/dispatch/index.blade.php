@@ -193,6 +193,9 @@
                                     @if ($order->scheduled_dispatch_at)
                                         <span class="badge {{ $promisedBadgeClass }} ms-1">Promised: {{ $order->scheduled_dispatch_at->format('M j, g:i A') }}</span>
                                     @endif
+                                    @if ($markedBy = $order->actionPerformedBy('delivery_failed'))
+                                        <br><span class="fst-italic">Status updated by {{ $markedBy }}</span>
+                                    @endif
                                 </div>
                             @endif
                             @if ($order->delivery_status === 'returned')
@@ -203,6 +206,9 @@
                                     @endif
                                     @if ($order->scheduled_dispatch_at)
                                         <span class="badge {{ $promisedBadgeClass }} ms-1">Promised: {{ $order->scheduled_dispatch_at->format('M j, g:i A') }}</span>
+                                    @endif
+                                    @if ($markedBy = $order->actionPerformedBy('returned'))
+                                        <br><span class="fst-italic">Status updated by {{ $markedBy }}</span>
                                     @endif
                                 </div>
                             @endif
@@ -297,11 +303,17 @@
                                         <i class="bi bi-check-circle text-success"></i>
                                         Delivered by {{ $order->rider?->user->name ?? '—' }}
                                         @if ($order->delivered_at) at {{ $order->delivered_at->format('M j, h:i A') }} @endif
+                                        @if ($markedBy = $order->actionPerformedBy('delivered'))
+                                            <br><span class="fst-italic">Status updated by {{ $markedBy }}</span>
+                                        @endif
                                     </div>
                                 @elseif ($order->delivery_status === 'returned')
                                     <div class="small text-muted">
                                         <i class="bi bi-arrow-return-left text-warning"></i>
                                         Returned by {{ $order->rider?->user->name ?? '—' }} — stock released back to inventory.
+                                        @if ($markedBy = $order->actionPerformedBy('returned'))
+                                            <br><span class="fst-italic">Status updated by {{ $markedBy }}</span>
+                                        @endif
                                     </div>
                                 @endif
 
