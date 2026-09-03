@@ -234,11 +234,15 @@ class Order extends Model
     /**
      * Unassigning only makes sense before pickup — once a rider has the
      * parcel in hand, reassignment happens by picking a different rider via
-     * canBeAssigned() rather than reverting to unassigned.
+     * canBeAssigned() rather than reverting to unassigned. Cancelled orders
+     * are allowed here on purpose: a cancelled-while-assigned order stays on
+     * the Dispatch Board precisely so staff can pull it back (see
+     * DispatchController::index()), and nothing has physically left the
+     * warehouse yet at this status, so unassigning it is always safe.
      */
     public function canBeUnassigned(): bool
     {
-        return $this->delivery_status === self::DELIVERY_STATUS_ASSIGNED && ! $this->isCancelled();
+        return $this->delivery_status === self::DELIVERY_STATUS_ASSIGNED;
     }
 
     public function canBeMarkedPickedUp(): bool
