@@ -68,7 +68,7 @@ class AccountingPostingService
         return $this->journal->post(
             lines: $lines,
             type: JournalEntry::TYPE_JOURNAL,
-            entryDate: now()->toDateString(),
+            entryDate: $order->shopify_created_at?->toDateString() ?? now()->toDateString(),
             narration: "Sales — Order #{$order->shopify_order_number}",
             referenceType: 'orders',
             referenceId: $order->id,
@@ -102,7 +102,7 @@ class AccountingPostingService
 
         return $this->journal->postSimple(
             type: JournalEntry::TYPE_JOURNAL,
-            entryDate: now()->toDateString(),
+            entryDate: $order->delivered_at?->toDateString() ?? now()->toDateString(),
             debitAccount: $cogsAccount,
             creditAccount: $inventoryAccount,
             amount: $amount,

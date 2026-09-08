@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\ShopifySyncLog;
 use App\Models\User;
+use App\Services\AccountingPostingService;
 use App\Services\AuditLogService;
 use App\Services\OrderFulfillmentService;
 use Carbon\Carbon;
@@ -42,6 +43,7 @@ class ShopifyOrderSyncService
         private readonly ShopifyClient $client,
         private readonly OrderFulfillmentService $fulfillment,
         private readonly AuditLogService $auditLog,
+        private readonly AccountingPostingService $accounting,
     ) {
     }
 
@@ -225,6 +227,11 @@ class ShopifyOrderSyncService
 
         $order->update(['order_status' => Order::ORDER_STATUS_CONFIRMED]);
         $this->auditLog->log('confirmed', 'orders', $order, null, ['order_status' => $order->order_status, 'source' => 'shopify']);
+
+        // Mirrors the manual confirm flow (OrderController::confirm) — this
+        // auto-confirm path bypassed accounting entirely, which is why Sales
+        // Revenue stayed at zero even with hundreds of confirmed orders.
+        $this->accounting->postSalesEntry($order);
     }
 
     /**
