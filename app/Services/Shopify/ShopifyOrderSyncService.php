@@ -13,6 +13,7 @@ use App\Models\ShopifySyncLog;
 use App\Models\User;
 use App\Services\AccountingPostingService;
 use App\Services\AuditLogService;
+use App\Services\AutoPurchaseOrderService;
 use App\Services\OrderFulfillmentService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +45,7 @@ class ShopifyOrderSyncService
         private readonly OrderFulfillmentService $fulfillment,
         private readonly AuditLogService $auditLog,
         private readonly AccountingPostingService $accounting,
+        private readonly AutoPurchaseOrderService $autoPurchase,
     ) {
     }
 
@@ -191,6 +193,11 @@ class ShopifyOrderSyncService
         // fails it's simply left pending, same as the pre-existing manual
         // confirm flow (OrderController::confirm), for staff to retry later.
         if ($isNew && $order->order_status === Order::ORDER_STATUS_PENDING) {
+            // This business holds no standing inventory — every order is
+            // what triggers buying the stock for it, not the other way
+            // around — so a draft Purchase Order is generated unconditionally
+            // here, not only when allocation below turns up short.
+            $this->autoPurchase->createDraftFor($order);
             $this->tryAutoConfirm($order);
         }
 

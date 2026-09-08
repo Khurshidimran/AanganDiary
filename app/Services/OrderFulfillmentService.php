@@ -168,9 +168,14 @@ class OrderFulfillmentService
     }
 
     /**
+     * Expands a sold line into the real stocked variant(s) behind it — a
+     * bundle explodes into its components, a plain item passes through
+     * as-is. Public because AutoPurchaseOrderService needs the exact same
+     * expansion to know what to actually go buy.
+     *
      * @return list<array{0: ProductVariant, 1: float}>
      */
-    private function expandToComponents(OrderItem $item): array
+    public function expandToComponents(OrderItem $item): array
     {
         $variant = $item->productVariant;
 

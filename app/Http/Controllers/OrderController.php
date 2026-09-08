@@ -14,6 +14,7 @@ use App\Models\ProductVariant;
 use App\Models\RiderProfile;
 use App\Services\AccountingPostingService;
 use App\Services\AuditLogService;
+use App\Services\AutoPurchaseOrderService;
 use App\Services\OrderFulfillmentService;
 use App\Services\Shopify\ShopifyOrderSyncService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -36,6 +37,7 @@ class OrderController extends Controller
         private readonly OrderFulfillmentService $fulfillment,
         private readonly ShopifyOrderSyncService $shopifySync,
         private readonly AccountingPostingService $accounting,
+        private readonly AutoPurchaseOrderService $autoPurchase,
     ) {
     }
 
@@ -231,6 +233,11 @@ class OrderController extends Controller
         });
 
         $this->auditLog->log('created', 'orders', $order, null, ['shopify_order_number' => $order->shopify_order_number]);
+
+        // This business holds no standing inventory — every order is what
+        // triggers buying the stock for it, so a draft Purchase Order is
+        // generated here too, same as for a Shopify-synced order.
+        $this->autoPurchase->createDraftFor($order);
 
         return redirect()->route('orders.show', $order)
             ->with('status', "Order {$order->shopify_order_number} created as pending — confirm it below when you're ready to allocate stock.");
