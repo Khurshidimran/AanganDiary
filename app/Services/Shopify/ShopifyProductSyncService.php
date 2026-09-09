@@ -146,10 +146,31 @@ class ShopifyProductSyncService
             )->first();
 
             foreach ($variants as $shopifyVariant) {
+                $shopifyVariantId = (string) $shopifyVariant['id'];
                 $rawSku = trim((string) ($shopifyVariant['sku'] ?? ''));
-                $sku = $rawSku !== '' ? $rawSku : 'BUNDLE-'.$shopifyVariant['id'];
+                $sku = $rawSku !== '' ? $rawSku : 'BUNDLE-'.$shopifyVariantId;
 
-                $existingVariant = ProductVariant::where('sku', $sku)->first();
+                // Matched by Shopify's own variant ID first — the only
+                // unambiguous identity available. SKU is only used to adopt
+                // a pre-existing, not-yet-linked local row (e.g. one entered
+                // manually before Shopify sync existed); if that SKU is
+                // already claimed by a DIFFERENT Shopify variant, that's a
+                // real duplicate/reused SKU on Shopify's side, not the same
+                // item — matching on SKU alone here would silently steal
+                // that row and overwrite its link, and the current variant
+                // would simply never get a row of its own (this was the bug:
+                // "only one variant syncs, the other is missing").
+                $existingVariant = ProductVariant::where('shopify_variant_id', $shopifyVariantId)->first();
+
+                if (! $existingVariant) {
+                    $skuOwner = ProductVariant::where('sku', $sku)->first();
+
+                    if ($skuOwner && $skuOwner->shopify_variant_id && $skuOwner->shopify_variant_id !== $shopifyVariantId) {
+                        $sku = "{$sku}-{$shopifyVariantId}";
+                    } elseif ($skuOwner) {
+                        $existingVariant = $skuOwner;
+                    }
+                }
 
                 if ($existingVariant) {
                     $existingVariant->update([
