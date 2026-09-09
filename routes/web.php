@@ -173,6 +173,8 @@ Route::middleware('auth')->group(function () {
     Route::get('reports/ledger', [AccountingReportController::class, 'ledger'])->name('reports.ledger');
     Route::get('reports/trial-balance', [AccountingReportController::class, 'trialBalance'])->name('reports.trial-balance');
     Route::get('reports/profit-and-loss', [AccountingReportController::class, 'profitAndLoss'])->name('reports.profit-and-loss');
+    Route::get('reports/profit-and-loss/export/pdf', [AccountingReportController::class, 'profitAndLossPdf'])->name('reports.profit-and-loss.export.pdf');
+    Route::get('reports/profit-and-loss/export/excel', [AccountingReportController::class, 'profitAndLossExcel'])->name('reports.profit-and-loss.export.excel');
     Route::get('reports/receivables-aging', [AccountingReportController::class, 'receivablesAging'])->name('reports.receivables-aging');
     Route::get('reports/payables-aging', [AccountingReportController::class, 'payablesAging'])->name('reports.payables-aging');
 

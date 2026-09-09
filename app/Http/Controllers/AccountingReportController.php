@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ProfitAndLossExport;
 use App\Models\Account;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\Order;
 use App\Models\Vendor;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AccountingReportController extends Controller
 {
@@ -102,6 +107,40 @@ class AccountingReportController extends Controller
     {
         $this->authorize('reports.financial.view');
 
+        return view('reports.profit-and-loss', $this->profitAndLossData($request));
+    }
+
+    public function profitAndLossPdf(Request $request): Response
+    {
+        $this->authorize('reports.financial.view');
+
+        $data = $this->profitAndLossData($request);
+
+        return Pdf::loadView('reports.profit-and-loss-pdf', $data)
+            ->setPaper('a4', 'portrait')
+            ->download('profit-and-loss-'.$data['dateFrom']->format('Y-m-d').'-to-'.$data['dateTo']->format('Y-m-d').'.pdf');
+    }
+
+    public function profitAndLossExcel(Request $request): BinaryFileResponse
+    {
+        $this->authorize('reports.financial.view');
+
+        $data = $this->profitAndLossData($request);
+
+        return Excel::download(
+            new ProfitAndLossExport($data['revenueAccounts'], $data['expenseAccounts'], $data['totalRevenue'], $data['totalExpense'], $data['netProfit']),
+            'profit-and-loss-'.$data['dateFrom']->format('Y-m-d').'-to-'.$data['dateTo']->format('Y-m-d').'.xlsx',
+        );
+    }
+
+    /**
+     * Shared by the on-screen report and both export actions so the
+     * exported figures always match whatever's currently on screen.
+     *
+     * @return array<string, mixed>
+     */
+    private function profitAndLossData(Request $request): array
+    {
         $dateFrom = Carbon::parse($request->input('date_from', now()->startOfMonth()->toDateString()));
         $dateTo = Carbon::parse($request->input('date_to', now()->toDateString()));
 
@@ -118,7 +157,7 @@ class AccountingReportController extends Controller
         $totalRevenue = $revenueAccounts->sum('amount');
         $totalExpense = $expenseAccounts->sum('amount');
 
-        return view('reports.profit-and-loss', [
+        return [
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
             'revenueAccounts' => $revenueAccounts,
@@ -126,7 +165,7 @@ class AccountingReportController extends Controller
             'totalRevenue' => $totalRevenue,
             'totalExpense' => $totalExpense,
             'netProfit' => $totalRevenue - $totalExpense,
-        ]);
+        ];
     }
 
     public function receivablesAging(Request $request): View
