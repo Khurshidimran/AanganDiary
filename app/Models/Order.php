@@ -129,6 +129,15 @@ class Order extends Model
     }
 
     /**
+     * Purchase Order(s) auto-generated for this order by
+     * AutoPurchaseOrderService — see PurchaseOrder::sourceOrder().
+     */
+    public function purchaseOrders(): HasMany
+    {
+        return $this->hasMany(PurchaseOrder::class, 'source_order_id');
+    }
+
+    /**
      * Who actually performed a given status-change action, most recently —
      * distinct from the assigned rider's name, since a dispatch manager can
      * mark a status update on a rider's behalf from the web board just as

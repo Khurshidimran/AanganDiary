@@ -67,6 +67,7 @@ class AutoPurchaseOrderService
             'po_number' => $this->nextPoNumber(),
             'vendor_id' => $vendor->id,
             'warehouse_id' => $warehouse->id,
+            'source_order_id' => $order->id,
             'status' => PurchaseOrder::STATUS_DRAFT,
             'order_date' => now(),
             'notes' => "Auto-generated for Order #{$order->shopify_order_number} — review quantities and unit costs before submitting.",

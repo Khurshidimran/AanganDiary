@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\Order;
 use App\Models\ProductVariant;
+use App\Models\PurchaseOrder;
 use App\Models\RiderProfile;
 use App\Services\AccountingPostingService;
 use App\Services\AuditLogService;
@@ -419,9 +420,40 @@ class OrderController extends Controller
             $this->accounting->voidSalesEntry($order, 'Order cancelled');
         }
 
+        // Delivery posts COGS separately from confirm's sales entry (see
+        // DispatchService::markDelivered / OrderController::markSelfPickedUp)
+        // — this business allows cancelling even an already-delivered order
+        // (canBeCancelled() only checks order_status), so a COGS entry can
+        // genuinely exist here too and must be reversed the same way.
+        $this->accounting->voidCogsEntry($order, 'Order cancelled');
+
+        // This business holds no standing inventory — every order auto-
+        // generates its own draft Purchase Order to cover it (see
+        // AutoPurchaseOrderService). Cancelling the order means that need no
+        // longer exists, so cancel the PO too — but only if it's still safe
+        // to (nothing received against it yet); one already received has
+        // already turned into real stock and needs a human to sort out.
+        $poNotesForStaff = [];
+        foreach ($order->purchaseOrders as $purchaseOrder) {
+            if ($purchaseOrder->canBeCancelled()) {
+                $purchaseOrder->update(['status' => PurchaseOrder::STATUS_CANCELLED]);
+                $this->auditLog->log('cancelled', 'purchase_orders', $purchaseOrder, null, [
+                    'status' => $purchaseOrder->status,
+                    'reason' => "Source order #{$order->shopify_order_number} was cancelled",
+                ]);
+            } elseif ($purchaseOrder->status !== PurchaseOrder::STATUS_CANCELLED) {
+                $poNotesForStaff[] = $purchaseOrder->po_number;
+            }
+        }
+
         $this->auditLog->log('cancelled', 'orders', $order, null, ['order_status' => $order->order_status, 'reason' => $validated['reason']]);
 
-        return back()->with('status', 'Order cancelled — locally and in Shopify.');
+        $status = 'Order cancelled — locally and in Shopify.';
+        if ($poNotesForStaff !== []) {
+            $status .= ' Note: purchase order(s) '.implode(', ', $poNotesForStaff).' already have stock received against them and were NOT auto-cancelled — review manually.';
+        }
+
+        return back()->with('status', $status);
     }
 
     /**

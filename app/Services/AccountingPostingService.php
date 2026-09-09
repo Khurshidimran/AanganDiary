@@ -81,6 +81,16 @@ class AccountingPostingService
         $this->journal->voidEntryFor('orders', $order->id, $reason);
     }
 
+    /**
+     * Safe to call unconditionally — voidEntryFor() is a no-op when no
+     * posted COGS entry exists for this order (e.g. it was cancelled
+     * before ever being delivered).
+     */
+    public function voidCogsEntry(Order $order, string $reason): void
+    {
+        $this->journal->voidEntryFor('order_cogs', $order->id, $reason);
+    }
+
     public function postCogsEntry(Order $order): ?JournalEntry
     {
         if ($this->journal->hasPostedEntryFor('order_cogs', $order->id)) {
