@@ -58,7 +58,12 @@
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label small text-muted mb-1">From</label>
+            <label class="form-label small text-muted mb-1">
+                From
+                @if ($dateField !== 'order_date')
+                    <span class="badge bg-info text-dark">{{ $dateField === 'dispatch_date' ? 'Dispatch Date' : 'Delivery Date' }}</span>
+                @endif
+            </label>
             <input type="date" name="date_from" class="form-control form-control-sm"
                    value="{{ $dateFrom?->format('Y-m-d') }}" onchange="this.form.submit()">
         </div>
@@ -67,6 +72,9 @@
             <input type="date" name="date_to" class="form-control form-control-sm"
                    value="{{ $dateTo?->format('Y-m-d') }}" onchange="this.form.submit()">
         </div>
+        @if ($dateField !== 'order_date')
+            <input type="hidden" name="date_field" value="{{ $dateField }}">
+        @endif
         <div class="col-md-2">
             <label class="form-label small text-muted mb-1">Per Page</label>
             <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">

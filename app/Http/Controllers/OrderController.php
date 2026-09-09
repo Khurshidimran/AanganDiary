@@ -60,8 +60,12 @@ class OrderController extends Controller
 
         $orders = $query->with(['items', 'rider.user', 'channel'])->orderBy('shopify_created_at', $sort)->paginate($perPage)->withQueryString();
 
+        $dateField = in_array($request->query('date_field'), ['dispatch_date', 'delivery_date'], true)
+            ? $request->query('date_field')
+            : 'order_date';
+
         return view('orders.index', compact(
-            'orders', 'dateFrom', 'dateTo', 'sort', 'perPage', 'isDefaultDateRange', 'totalSum', 'totalCount',
+            'orders', 'dateFrom', 'dateTo', 'sort', 'perPage', 'isDefaultDateRange', 'totalSum', 'totalCount', 'dateField',
         ) + [
             'channels' => Channel::orderBy('name')->pluck('name', 'id'),
             'riders' => RiderProfile::with('user')->get()->sortBy(fn (RiderProfile $r) => $r->user->name)->pluck('user.name', 'id'),
@@ -294,6 +298,17 @@ class OrderController extends Controller
             $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : null;
         }
 
+        // Which date the from/to range applies to — set by drill-through
+        // links from the Delivery Report, which counts the same window
+        // through three different date lenses (see OrderController::
+        // deliveryReport()). Defaults to order date so every existing
+        // link/bookmark keeps behaving exactly as before.
+        $dateColumn = match ($request->query('date_field')) {
+            'dispatch_date' => 'assigned_at',
+            'delivery_date' => 'delivered_at',
+            default => 'shopify_created_at',
+        };
+
         $query = Order::query()
             ->when($request->filled('order_status'), fn ($q) => $q->where('order_status', $request->query('order_status')))
             ->when($request->filled('delivery_status'), fn ($q) => $q->where('delivery_status', $request->query('delivery_status')))
@@ -312,8 +327,8 @@ class OrderController extends Controller
                     ->orWhere('customer_name', 'like', "%{$term}%")
                     ->orWhere('customer_phone', 'like', "%{$term}%"));
             })
-            ->when($dateFrom, fn ($q) => $q->where('shopify_created_at', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('shopify_created_at', '<=', $dateTo));
+            ->when($dateFrom, fn ($q) => $q->where($dateColumn, '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where($dateColumn, '<=', $dateTo));
 
         return [$query, $dateFrom, $dateTo, $isDefaultDateRange];
     }

@@ -31,7 +31,15 @@
 
     <div class="row g-3">
         @foreach (['order_date', 'dispatch_date', 'delivery_date'] as $key)
-            @php $row = $rows[$key]; @endphp
+            @php
+                $row = $rows[$key];
+                $baseParams = [
+                    'date_from' => $dateFrom->toDateString(),
+                    'date_to' => $dateTo->toDateString(),
+                    'date_field' => $key,
+                    'exclude_cancelled' => 1,
+                ];
+            @endphp
             <div class="col-lg-4">
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-white fw-semibold">{{ $row['label'] }}</div>
@@ -41,7 +49,10 @@
                         @if ($key !== 'delivery_date')
                             <dl class="row mb-2 small">
                                 <dt class="col-7">Total Orders</dt>
-                                <dd class="col-5 text-end">{{ $row['total_count'] }} / {{ number_format($row['total_value'], 2) }}</dd>
+                                <dd class="col-5 text-end">
+                                    <a href="{{ route('orders.index', $baseParams) }}" title="View these orders">{{ $row['total_count'] }}</a>
+                                    / {{ number_format($row['total_value'], 2) }}
+                                </dd>
                             </dl>
                             <hr class="my-2">
                         @endif
@@ -52,7 +63,10 @@
                                 <div class="small">Count / Value</div>
                             </div>
                             <div class="text-end">
-                                <div class="fs-4 fw-bold text-success">{{ $row['delivered_count'] }}</div>
+                                <div class="fs-4 fw-bold">
+                                    <a href="{{ route('orders.index', $baseParams + ['delivery_status' => 'delivered']) }}"
+                                       class="text-success text-decoration-none" title="View these orders">{{ $row['delivered_count'] }}</a>
+                                </div>
                                 <div class="small text-muted">Rs. {{ number_format($row['delivered_value'], 2) }}</div>
                             </div>
                         </div>
