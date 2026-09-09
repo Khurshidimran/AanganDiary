@@ -140,10 +140,20 @@ class ShopifyProductSyncService
                 fn (array $v) => trim((string) ($v['sku'] ?? '')) === '',
             );
 
-            $product = Product::whereHas(
+            // A product can have more than one local candidate here if an
+            // earlier, since-fixed version of this sync ever split one
+            // Shopify product's variants across separate local Product rows
+            // (each variant landing on its own product instead of sharing
+            // one) — self-heal by preferring the candidate whose name still
+            // matches Shopify's title, falling back to the oldest otherwise,
+            // and reconciling every already-linked variant onto it below.
+            $candidateProducts = Product::whereHas(
                 'variants',
                 fn ($q) => $q->where('shopify_product_id', (string) $shopifyProduct['id']),
-            )->first();
+            )->get();
+
+            $product = $candidateProducts->firstWhere('name', $shopifyProduct['title'])
+                ?? $candidateProducts->sortBy('created_at')->first();
 
             foreach ($variants as $shopifyVariant) {
                 $shopifyVariantId = (string) $shopifyVariant['id'];
@@ -161,6 +171,7 @@ class ShopifyProductSyncService
                 // would simply never get a row of its own (this was the bug:
                 // "only one variant syncs, the other is missing").
                 $existingVariant = ProductVariant::where('shopify_variant_id', $shopifyVariantId)->first();
+                $alreadyLinked = $existingVariant !== null;
 
                 if (! $existingVariant) {
                     $skuOwner = ProductVariant::where('sku', $sku)->first();
@@ -173,7 +184,26 @@ class ShopifyProductSyncService
                 }
 
                 if ($existingVariant) {
-                    $existingVariant->update([
+                    // Only reconcile the product for a variant that was
+                    // already linked to Shopify on a prior sync — a variant
+                    // adopted here for the first time (matched by SKU alone,
+                    // never before linked) keeps whatever product it was
+                    // manually curated under rather than being moved.
+                    if ($alreadyLinked) {
+                        $product ??= $existingVariant->product;
+                        $previousProductId = $existingVariant->product_id;
+
+                        if ($previousProductId !== $product->id) {
+                            $existingVariant->product_id = $product->id;
+
+                            $orphanedProduct = Product::find($previousProductId);
+                            if ($orphanedProduct && $orphanedProduct->variants()->where('id', '!=', $existingVariant->id)->doesntExist()) {
+                                $orphanedProduct->delete();
+                            }
+                        }
+                    }
+
+                    $existingVariant->fill([
                         'shopify_product_id' => (string) $shopifyProduct['id'],
                         'shopify_variant_id' => (string) $shopifyVariant['id'],
                         'shopify_inventory_item_id' => isset($shopifyVariant['inventory_item_id'])
@@ -188,7 +218,7 @@ class ShopifyProductSyncService
                         'barcode' => $shopifyVariant['barcode'] ?? null,
                         'sale_price' => $shopifyVariant['price'] ?? 0,
                         'compare_at_price' => $shopifyVariant['compare_at_price'] ?? null,
-                    ]);
+                    ])->save();
                     $anyUpdated = true;
 
                     continue;
