@@ -155,6 +155,16 @@ class ShopifyProductSyncService
             $product = $candidateProducts->firstWhere('name', $shopifyProduct['title'])
                 ?? $candidateProducts->sortBy('created_at')->first();
 
+            // Status must keep tracking Shopify on every sync, not just at
+            // creation — otherwise a product deactivated on Shopify stays
+            // sellable here forever, since nothing else in this method ever
+            // touches an existing product's fields.
+            if ($product) {
+                $product->update([
+                    'status' => ($shopifyProduct['status'] ?? 'active') === 'active' ? 'active' : 'inactive',
+                ]);
+            }
+
             foreach ($variants as $shopifyVariant) {
                 $shopifyVariantId = (string) $shopifyVariant['id'];
                 $rawSku = trim((string) ($shopifyVariant['sku'] ?? ''));
