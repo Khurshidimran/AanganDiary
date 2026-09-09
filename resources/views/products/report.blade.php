@@ -66,9 +66,10 @@
                             <td>{{ rtrim(rtrim($variant->pack_size, '0'), '.') }} {{ $variant->unit?->short_code }}</td>
                             <td class="text-end">{{ number_format($variant->purchase_price, 2) }}</td>
                             <td class="text-end">{{ number_format($variant->sale_price, 2) }}</td>
+                            @php $isActive = $variant->is_active && $variant->product->status === 'active'; @endphp
                             <td>
-                                <span class="badge {{ $variant->is_active ? 'bg-success' : 'bg-secondary' }}">
-                                    {{ $variant->is_active ? 'Active' : 'Inactive' }}
+                                <span class="badge {{ $isActive ? 'bg-success' : 'bg-secondary' }}">
+                                    {{ $isActive ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
                         </tr>
