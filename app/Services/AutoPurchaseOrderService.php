@@ -31,33 +31,13 @@ class AutoPurchaseOrderService
     public function createDraftFor(Order $order): ?PurchaseOrder
     {
         $vendor = Vendor::oldest('created_at')->first();
+        $warehouse = $this->defaultWarehouse();
 
-        if (! $vendor) {
+        if (! $vendor || ! $warehouse) {
             return null;
         }
 
-        $warehouseId = $this->settings->group('inventory')->get('default_warehouse_id');
-        $warehouse = $warehouseId ? Warehouse::find($warehouseId) : null;
-
-        if (! $warehouse) {
-            return null;
-        }
-
-        $order->loadMissing('items.productVariant.product.bundleItems.componentVariant.product');
-
-        $quantities = [];
-        $variantsById = [];
-
-        foreach ($order->items as $item) {
-            foreach ($this->fulfillment->expandToComponents($item) as [$variant, $quantity]) {
-                if (! $variant->product->track_inventory) {
-                    continue;
-                }
-
-                $quantities[$variant->id] = ($quantities[$variant->id] ?? 0) + $quantity;
-                $variantsById[$variant->id] = $variant;
-            }
-        }
+        [$quantities, $variantsById] = $this->neededQuantities($order);
 
         if (empty($quantities)) {
             return null;
@@ -85,6 +65,81 @@ class AutoPurchaseOrderService
         }
 
         return $po;
+    }
+
+    /**
+     * Called when an already-synced order's line items change (a customer
+     * calls in and staff edits the order on Shopify after the fact) — keeps
+     * every still-safe-to-touch auto-generated PO's quantities matching
+     * what the order now actually needs: existing lines are updated,
+     * newly-needed products get a new line, and products no longer on the
+     * order have their line removed. A PO that already has ANY stock
+     * received against it is left alone entirely — editing quantities on a
+     * partially-fulfilled purchase is a decision for a human, not this.
+     */
+    public function reconcileForOrder(Order $order): void
+    {
+        [$quantities, $variantsById] = $this->neededQuantities($order);
+
+        foreach ($order->purchaseOrders as $po) {
+            if ($po->status === PurchaseOrder::STATUS_CANCELLED) {
+                continue;
+            }
+
+            if ($po->items->sum('quantity_received') > 0) {
+                continue;
+            }
+
+            $existingByVariant = $po->items->keyBy('product_variant_id');
+
+            foreach ($quantities as $variantId => $quantity) {
+                if ($existingByVariant->has($variantId)) {
+                    $existingByVariant[$variantId]->update(['quantity_ordered' => $quantity]);
+                } else {
+                    /** @var ProductVariant $variant */
+                    $variant = $variantsById[$variantId];
+
+                    $po->items()->create([
+                        'product_variant_id' => $variantId,
+                        'quantity_ordered' => $quantity,
+                        'unit_cost' => (float) $variant->purchase_price,
+                    ]);
+                }
+            }
+
+            $po->items()->whereNotIn('product_variant_id', array_keys($quantities))->delete();
+        }
+    }
+
+    /**
+     * @return array{0: array<string, float>, 1: array<string, ProductVariant>}
+     */
+    private function neededQuantities(Order $order): array
+    {
+        $order->loadMissing('items.productVariant.product.bundleItems.componentVariant.product');
+
+        $quantities = [];
+        $variantsById = [];
+
+        foreach ($order->items as $item) {
+            foreach ($this->fulfillment->expandToComponents($item) as [$variant, $quantity]) {
+                if (! $variant->product->track_inventory) {
+                    continue;
+                }
+
+                $quantities[$variant->id] = ($quantities[$variant->id] ?? 0) + $quantity;
+                $variantsById[$variant->id] = $variant;
+            }
+        }
+
+        return [$quantities, $variantsById];
+    }
+
+    private function defaultWarehouse(): ?Warehouse
+    {
+        $warehouseId = $this->settings->group('inventory')->get('default_warehouse_id');
+
+        return $warehouseId ? Warehouse::find($warehouseId) : null;
     }
 
     private function nextPoNumber(): string

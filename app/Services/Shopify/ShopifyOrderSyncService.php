@@ -104,11 +104,14 @@ class ShopifyOrderSyncService
     public function sync(array $payload): Order
     {
         $isNew = false;
+        $itemsChanged = false;
+        $wasConfirmed = false;
 
-        $order = DB::transaction(function () use ($payload, &$isNew) {
+        $order = DB::transaction(function () use ($payload, &$isNew, &$itemsChanged, &$wasConfirmed) {
             $order = Order::withTrashed()->firstOrNew(['shopify_order_id' => (string) $payload['id']]);
             $isNew = ! $order->exists;
             $wasCancelled = $order->getOriginal('order_status') === Order::ORDER_STATUS_CANCELLED;
+            $wasConfirmed = $order->getOriginal('order_status') === Order::ORDER_STATUS_CONFIRMED;
 
             $customer = $this->resolveCustomer($payload);
 
@@ -167,6 +170,15 @@ class ShopifyOrderSyncService
                 $this->auditLog->log('cancelled', 'orders', $order, null, ['order_status' => $order->order_status, 'source' => 'shopify']);
             }
 
+            // Signature of what's on the order right now, so a re-sync that
+            // didn't actually touch line items (e.g. just a note or address
+            // change) doesn't trigger a pointless stock/PO reconciliation
+            // below — only a genuine add/remove/quantity change should.
+            $oldSignature = $order->items()
+                ->get(['product_variant_id', 'quantity'])
+                ->map(fn ($i) => $i->product_variant_id.':'.$i->quantity)
+                ->sort()->values()->all();
+
             $order->items()->delete();
 
             foreach ($payload['line_items'] ?? [] as $lineItem) {
@@ -182,7 +194,24 @@ class ShopifyOrderSyncService
                 ]);
             }
 
-            return $order->fresh('items');
+            $order = $order->fresh('items');
+
+            $newSignature = $order->items
+                ->map(fn ($i) => $i->product_variant_id.':'.$i->quantity)
+                ->sort()->values()->all();
+
+            $itemsChanged = $oldSignature !== $newSignature;
+
+            // Keep any still-editable auto-generated Purchase Order in step
+            // with what the order now actually needs — a customer calling in
+            // to change quantities after the fact shouldn't leave a stale PO
+            // behind. Only for an existing order: a brand-new order gets its
+            // PO created fresh, below, outside this transaction.
+            if (! $isNew && $itemsChanged) {
+                $this->autoPurchase->reconcileForOrder($order);
+            }
+
+            return $order;
         });
 
         // Deliberately outside the transaction above: allocateStock() manages
@@ -199,6 +228,24 @@ class ShopifyOrderSyncService
             // here, not only when allocation below turns up short.
             $this->autoPurchase->createDraftFor($order);
             $this->tryAutoConfirm($order);
+        }
+
+        // A confirmed order's stock was already allocated for its ORIGINAL
+        // items — if a customer calls in after that and the order gets
+        // edited on Shopify, the reservation must move to match the new
+        // items too, or available stock silently drifts wrong in both
+        // directions (still holding what's no longer needed, never holding
+        // what's newly added). Release nets against whatever's still open
+        // per variant/batch (see its own docblock), so this is safe to run
+        // even if a prior release already happened for this order.
+        if (! $isNew && $itemsChanged && $wasConfirmed) {
+            try {
+                $this->fulfillment->releaseStock($order);
+                $this->fulfillment->allocateStock($order);
+            } catch (InsufficientStockException|WarehouseNotConfiguredException) {
+                // Whatever's allocatable was allocated; the rest is simply
+                // short, same tolerance tryAutoConfirm() already has.
+            }
         }
 
         return $order;
