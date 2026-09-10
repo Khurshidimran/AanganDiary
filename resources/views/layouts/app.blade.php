@@ -250,6 +250,11 @@
                                 <i class="bi bi-signpost-2 me-2"></i> Account Mapping
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="{{ route('accounting.opening-balances.edit') }}" class="nav-link {{ request()->routeIs('accounting.opening-balances.*') ? 'active' : '' }}">
+                                <i class="bi bi-clock-history me-2"></i> Opening Balances
+                            </a>
+                        </li>
                     @endcan
                     @can('journal_entries.view')
                         <li class="nav-item">

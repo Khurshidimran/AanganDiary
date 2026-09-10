@@ -22,6 +22,7 @@ class JournalEntry extends Model
     public const TYPE_CASH_RECEIPT = 'cash_receipt';
     public const TYPE_BANK_PAYMENT = 'bank_payment';
     public const TYPE_BANK_RECEIPT = 'bank_receipt';
+    public const TYPE_OPENING_BALANCE = 'opening_balance';
 
     public const SOURCE_MANUAL = 'manual';
     public const SOURCE_SYSTEM = 'system';

@@ -68,12 +68,21 @@ body {
 }
 
 /* Admin shell */
+/* position: sticky + a capped height give the sidebar its own independent
+   scroll region, pinned to the viewport — separate from the main content's
+   scroll. Without this, the sidebar had no scrollbar of its own (only
+   min-height, which lets it grow past the viewport instead of clipping),
+   so the whole page scrolled as one unit — meaning scrolling a low sidebar
+   item into view also dragged the main content down with it. */
 #sidebar {
     width: 250px;
-    min-height: 100vh;
+    height: 100vh;
+    position: sticky;
+    top: 0;
     background: linear-gradient(180deg, var(--aangan-green) 0%, var(--aangan-green-dark) 100%);
     transition: width 0.15s ease;
     overflow-x: hidden;
+    overflow-y: auto;
 }
 
 /* Collapsed sidebar — icons only. Labels are hidden via font-size rather

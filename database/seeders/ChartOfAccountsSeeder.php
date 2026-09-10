@@ -30,6 +30,7 @@ class ChartOfAccountsSeeder extends Seeder
         ['2400', 'Payroll Deductions Clearing', 'liability', '2000', true],
         ['3000', 'Equity', 'equity', null, true],
         ['3100', "Owner's Equity", 'equity', '3000', false],
+        ['3150', 'Opening Balance Equity', 'equity', '3000', true],
         ['3200', 'Retained Earnings', 'equity', '3000', true],
         ['4000', 'Revenue', 'revenue', null, true],
         ['4100', 'Sales Revenue', 'revenue', '4000', true],

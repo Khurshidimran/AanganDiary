@@ -17,6 +17,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OpeningBalanceController;
 use App\Http\Controllers\OrderPaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -160,6 +161,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('accounting/mapping', [AccountMappingController::class, 'edit'])->name('accounting.mapping.edit');
     Route::put('accounting/mapping', [AccountMappingController::class, 'update'])->name('accounting.mapping.update');
+
+    Route::get('accounting/opening-balances', [OpeningBalanceController::class, 'edit'])->name('accounting.opening-balances.edit');
+    Route::post('accounting/opening-balances', [OpeningBalanceController::class, 'update'])->name('accounting.opening-balances.update');
 
     Route::get('vouchers/{type}/create', [VoucherController::class, 'create'])->name('vouchers.create');
     Route::post('vouchers/{type}', [VoucherController::class, 'store'])->name('vouchers.store');
