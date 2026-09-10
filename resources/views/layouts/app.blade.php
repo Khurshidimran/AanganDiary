@@ -405,6 +405,14 @@
             fullscreenIcon?.classList.toggle('bi-arrows-fullscreen', ! document.fullscreenElement);
             fullscreenIcon?.classList.toggle('bi-fullscreen-exit', !! document.fullscreenElement);
         });
+
+        // The sidebar has no scrollbar of its own (see #sidebar in
+        // admin-theme.css) — it's long enough that it drives the whole
+        // page's height, so the active link for a menu item near the
+        // bottom can load off-screen below the fold with nothing showing
+        // it's selected. "nearest" only scrolls the minimal amount needed
+        // in whichever direction — nothing happens if it's already visible.
+        document.querySelector('#sidebar .nav-link.active')?.scrollIntoView({block: 'nearest'});
     </script>
     @stack('scripts')
 </body>

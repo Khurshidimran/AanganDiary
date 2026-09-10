@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DeliveryAttempt;
 use App\Models\Order;
+use App\Models\PurchaseOrder;
 use App\Models\RiderProfile;
 use App\Models\Role;
 use App\Models\ShopifySyncLog;
@@ -41,7 +42,53 @@ class DashboardController extends Controller
             'liveRiders' => $this->liveRiders(),
             'recentOrders' => Order::with(['channel', 'rider.user'])->latest('shopify_created_at')->take(10)->get(),
             'courierPerformance' => $this->courierPerformance($dateFrom, $dateTo),
+            'purchaseOrderCoverage' => $this->purchaseOrderCoverage($dateFrom, $dateTo),
         ]));
+    }
+
+    /**
+     * This business holds no standing inventory — every order auto-generates
+     * its own draft Purchase Order to cover it (see AutoPurchaseOrderService).
+     * This answers "against how many of this window's orders did that
+     * actually happen, and where do those POs stand" — orders with nothing
+     * purchasable (e.g. every line untracked) never get one, so
+     * orders_with_po can legitimately be less than total_orders even with
+     * nothing wrong.
+     *
+     * @return array<string, mixed>
+     */
+    private function purchaseOrderCoverage(Carbon $dateFrom, Carbon $dateTo): array
+    {
+        $ordersInRange = Order::whereBetween('shopify_created_at', [$dateFrom, $dateTo]);
+        $totalOrders = (clone $ordersInRange)->count();
+        $ordersWithPo = (clone $ordersInRange)->whereHas('purchaseOrders')->count();
+
+        $pos = PurchaseOrder::whereHas(
+            'sourceOrder',
+            fn ($q) => $q->whereBetween('shopify_created_at', [$dateFrom, $dateTo]),
+        )->with('items')->get();
+
+        $pendingStatuses = [
+            PurchaseOrder::STATUS_DRAFT,
+            PurchaseOrder::STATUS_SUBMITTED,
+            PurchaseOrder::STATUS_APPROVED,
+            PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
+        ];
+
+        $pending = $pos->whereIn('status', $pendingStatuses);
+        $closed = $pos->where('status', PurchaseOrder::STATUS_FULLY_RECEIVED);
+        $cancelled = $pos->where('status', PurchaseOrder::STATUS_CANCELLED);
+
+        return [
+            'total_orders' => $totalOrders,
+            'orders_with_po' => $ordersWithPo,
+            'pending_count' => $pending->count(),
+            'pending_amount' => $pending->sum(fn (PurchaseOrder $po) => $po->totalCost()),
+            'closed_count' => $closed->count(),
+            'closed_amount' => $closed->sum(fn (PurchaseOrder $po) => $po->totalCost()),
+            'cancelled_count' => $cancelled->count(),
+            'cancelled_amount' => $cancelled->sum(fn (PurchaseOrder $po) => $po->totalCost()),
+        ];
     }
 
     /**

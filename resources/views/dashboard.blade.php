@@ -41,6 +41,8 @@
 
         @include('dashboard._todays-operations')
 
+        @include('dashboard._purchase-order-coverage')
+
         <div class="row g-3 mb-3">
             <div class="col-lg-7">
                 @include('dashboard._recent-orders')

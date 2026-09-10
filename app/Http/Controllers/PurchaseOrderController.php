@@ -9,7 +9,9 @@ use App\Models\PurchaseOrder;
 use App\Models\Vendor;
 use App\Models\Warehouse;
 use App\Services\AuditLogService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -19,13 +21,27 @@ class PurchaseOrderController extends Controller
     {
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('viewAny', PurchaseOrder::class);
 
-        $purchaseOrders = PurchaseOrder::with(['vendor', 'warehouse'])->latest('order_date')->paginate(20);
+        $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : null;
+        $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : null;
 
-        return view('purchase-orders.index', compact('purchaseOrders'));
+        $query = PurchaseOrder::with(['vendor', 'warehouse', 'items'])
+            ->when($dateFrom, fn ($q) => $q->where('order_date', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('order_date', '<=', $dateTo));
+
+        // One card per status — count and total value — so staff can see the
+        // shape of the whole (filtered) list at a glance, not just whatever
+        // page they're currently paginated to.
+        $summary = (clone $query)->get()
+            ->groupBy('status')
+            ->map(fn ($group) => ['count' => $group->count(), 'amount' => $group->sum(fn (PurchaseOrder $po) => $po->totalCost())]);
+
+        $purchaseOrders = (clone $query)->latest('order_date')->paginate(20)->withQueryString();
+
+        return view('purchase-orders.index', compact('purchaseOrders', 'summary', 'dateFrom', 'dateTo'));
     }
 
     public function create(): View
