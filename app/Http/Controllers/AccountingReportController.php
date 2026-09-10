@@ -143,39 +143,61 @@ class AccountingReportController extends Controller
         };
     }
 
+    /**
+     * Opening / Period (Movement) / Closing, each split into Dr and Cr —
+     * the standard "trial balance with movement" shape. Opening and Closing
+     * are each a single account balance netted to whichever side it
+     * actually sits on (see drCr()); Period is the raw, un-netted debit and
+     * credit activity posted inside the date range, shown on both sides
+     * since that's the whole point of a movement column (how much moved
+     * each way, not just the net).
+     */
     public function trialBalance(Request $request): View
     {
         $this->authorize('reports.financial.view');
 
-        $asOf = Carbon::parse($request->input('as_of', now()->toDateString()));
+        $dateFrom = Carbon::parse($request->input('date_from', now()->startOfMonth()->toDateString()))->startOfDay();
+        $dateTo = Carbon::parse($request->input('date_to', now()->toDateString()))->endOfDay();
 
         $rows = Account::where('status', Account::STATUS_ACTIVE)
             ->orderBy('code')
             ->get()
-            ->map(function (Account $account) use ($asOf) {
-                $lines = $account->lines()->whereHas(
-                    'journalEntry',
-                    fn ($q) => $q->where('status', JournalEntry::STATUS_POSTED)->where('entry_date', '<=', $asOf),
-                );
+            ->map(function (Account $account) use ($dateFrom, $dateTo) {
+                $isDebitNormal = $account->normalBalance() === 'debit';
 
-                $debit = (float) $lines->sum('debit');
-                $credit = (float) $lines->sum('credit');
-                $net = $debit - $credit;
+                $opening = $this->drCr($account->balanceAsOf($dateFrom->copy()->subDay()), $isDebitNormal);
+                $closing = $this->drCr($account->balanceAsOf($dateTo), $isDebitNormal);
+
+                $periodLines = $account->lines()->whereHas(
+                    'journalEntry',
+                    fn ($q) => $q->where('status', JournalEntry::STATUS_POSTED)->whereBetween('entry_date', [$dateFrom, $dateTo]),
+                );
 
                 return [
                     'account' => $account,
-                    'debit' => $net > 0 ? $net : 0.0,
-                    'credit' => $net < 0 ? -$net : 0.0,
+                    'opening' => $opening,
+                    'period_debit' => (float) $periodLines->sum('debit'),
+                    'period_credit' => (float) $periodLines->sum('credit'),
+                    'closing' => $closing,
                 ];
             })
-            ->filter(fn ($row) => $row['debit'] != 0 || $row['credit'] != 0)
+            ->filter(fn ($row) => $row['opening']['amount'] != 0 || $row['period_debit'] != 0 || $row['period_credit'] != 0 || $row['closing']['amount'] != 0)
             ->values();
 
+        $totals = [
+            'opening_debit' => $rows->sum(fn ($r) => $r['opening']['label'] === 'DR' ? $r['opening']['amount'] : 0),
+            'opening_credit' => $rows->sum(fn ($r) => $r['opening']['label'] === 'CR' ? $r['opening']['amount'] : 0),
+            'period_debit' => $rows->sum('period_debit'),
+            'period_credit' => $rows->sum('period_credit'),
+            'closing_debit' => $rows->sum(fn ($r) => $r['closing']['label'] === 'DR' ? $r['closing']['amount'] : 0),
+            'closing_credit' => $rows->sum(fn ($r) => $r['closing']['label'] === 'CR' ? $r['closing']['amount'] : 0),
+        ];
+
         return view('reports.trial-balance', [
-            'asOf' => $asOf,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
             'rows' => $rows,
-            'totalDebit' => $rows->sum('debit'),
-            'totalCredit' => $rows->sum('credit'),
+            'totals' => $totals,
         ]);
     }
 
