@@ -47,6 +47,11 @@
                             </td>
                             <td class="text-end">{{ $customer->orders_count }}</td>
                             <td class="text-end">
+                                @can('view', $customer)
+                                    <a href="{{ route('customers.ledger', $customer) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-journal-text"></i> Ledger
+                                    </a>
+                                @endcan
                                 @can('update', $customer)
                                     <a href="{{ route('customers.edit', $customer) }}" class="btn btn-sm btn-outline-secondary">
                                         <i class="bi bi-pencil"></i>

@@ -218,7 +218,15 @@ class OrderController extends Controller
                 // full total outstanding, same as an unpaid Shopify order.
                 'total_outstanding' => $validated['payment_status'] === Order::PAYMENT_STATUS_PAID ? 0 : $total,
                 'notes' => $validated['notes'] ?? null,
-                'shopify_created_at' => now(),
+                // shopify_created_at is exempted from the usual UTC-storage
+                // conversion (see Order::$timezoneExempt) — it's stored and
+                // displayed as raw Pakistan wall-clock digits, matching how
+                // real Shopify data has always landed here. A manually
+                // picked order_date is already in that same local form
+                // (datetime-local input), so it's used as-is; the fallback
+                // must use Pakistan "now", not plain UTC now(), for the
+                // same reason.
+                'shopify_created_at' => $validated['order_date'] ?? now('Asia/Karachi')->format('Y-m-d H:i:s'),
             ]);
 
             foreach ($validated['items'] as $item) {
@@ -545,6 +553,10 @@ class OrderController extends Controller
             $order->update($updates);
 
             $this->accounting->postCogsEntry($order);
+
+            // The goods have genuinely left now — receive the purchase that
+            // covered them too, same as the rider-delivery flow.
+            $this->autoPurchase->autoReceiveForOrder($order);
         });
 
         $this->auditLog->log('self_picked_up', 'orders', $order, null, ['delivery_status' => $order->delivery_status]);

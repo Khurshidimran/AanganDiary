@@ -25,6 +25,7 @@ class StoreOrderRequest extends FormRequest
 
         return [
             'channel_id' => ['required', 'exists:channels,id'],
+            'order_date' => ['nullable', 'date', 'before_or_equal:now'],
 
             'customer_id' => ['nullable', 'exists:customers,id'],
             'customer_name' => ['required', 'string', 'max:255'],

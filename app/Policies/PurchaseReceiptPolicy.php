@@ -21,4 +21,9 @@ class PurchaseReceiptPolicy
     {
         return $user->can('purchase_receipts.create');
     }
+
+    public function unpost(User $user, PurchaseReceipt $purchaseReceipt): bool
+    {
+        return $user->can('purchase_receipts.unpost');
+    }
 }

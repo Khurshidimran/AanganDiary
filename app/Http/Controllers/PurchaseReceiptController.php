@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InsufficientStockException;
 use App\Http\Requests\StorePurchaseReceiptRequest;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseReceipt;
 use App\Services\AccountingPostingService;
 use App\Services\AuditLogService;
-use App\Services\InventoryService;
+use App\Services\PurchaseReceiptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class PurchaseReceiptController extends Controller
 {
     public function __construct(
         private readonly AuditLogService $auditLog,
-        private readonly InventoryService $inventory,
+        private readonly PurchaseReceiptService $receiptService,
         private readonly AccountingPostingService $accounting,
     ) {
     }
@@ -51,65 +51,14 @@ class PurchaseReceiptController extends Controller
         $validated = $request->validated();
         $purchaseOrder = PurchaseOrder::findOrFail($validated['purchase_order_id']);
 
-        $receipt = DB::transaction(function () use ($validated, $purchaseOrder, $request) {
-            $receipt = PurchaseReceipt::create([
-                'receipt_number' => $this->nextReceiptNumber(),
-                'purchase_order_id' => $purchaseOrder->id,
-                'vendor_id' => $purchaseOrder->vendor_id,
-                'warehouse_id' => $purchaseOrder->warehouse_id,
-                'receipt_date' => $validated['receipt_date'],
-                'invoice_number' => $validated['invoice_number'] ?? null,
-                'notes' => $validated['notes'] ?? null,
-                'received_by' => $request->user()->id,
-            ]);
-
-            $totalCost = 0;
-
-            foreach ($validated['items'] as $item) {
-                $poItem = $purchaseOrder->items()->findOrFail($item['purchase_order_item_id']);
-                $lineCost = $item['quantity'] * $item['unit_cost'];
-                $totalCost += $lineCost;
-
-                $receiptItem = $receipt->items()->create([
-                    'purchase_order_item_id' => $poItem->id,
-                    'product_variant_id' => $poItem->product_variant_id,
-                    'quantity' => $item['quantity'],
-                    'unit_cost' => $item['unit_cost'],
-                    'total_cost' => $lineCost,
-                    'batch_number' => $item['batch_number'] ?? null,
-                    'manufacturing_date' => $item['manufacturing_date'] ?? null,
-                    'expiry_date' => $item['expiry_date'] ?? null,
-                ]);
-
-                $poItem->increment('quantity_received', $item['quantity']);
-
-                $this->inventory->postTransaction(
-                    variant: $poItem->productVariant,
-                    warehouse: $purchaseOrder->warehouse,
-                    transactionType: \App\Models\InventoryTransaction::TYPE_PURCHASE_RECEIPT,
-                    quantity: (float) $item['quantity'],
-                    batchNumber: $item['batch_number'] ?? null,
-                    referenceType: 'purchase_receipt',
-                    referenceId: $receipt->id,
-                    notes: "Received against {$purchaseOrder->po_number}",
-                    expiryDate: $item['expiry_date'] ?? null,
-                );
-            }
-
-            $receipt->update(['total_cost' => $totalCost]);
-
-            $purchaseOrder->refresh()->load('items');
-            $allReceived = $purchaseOrder->items->every(fn ($i) => $i->quantityRemaining() <= 0);
-            $someReceived = $purchaseOrder->items->sum('quantity_received') > 0;
-
-            $purchaseOrder->update([
-                'status' => $allReceived
-                    ? PurchaseOrder::STATUS_FULLY_RECEIVED
-                    : ($someReceived ? PurchaseOrder::STATUS_PARTIALLY_RECEIVED : $purchaseOrder->status),
-            ]);
-
-            return $receipt;
-        });
+        $receipt = $this->receiptService->receive(
+            purchaseOrder: $purchaseOrder,
+            receiptDate: $validated['receipt_date'],
+            items: $validated['items'],
+            receivedBy: $request->user()->id,
+            invoiceNumber: $validated['invoice_number'] ?? null,
+            notes: $validated['notes'] ?? null,
+        );
 
         $this->auditLog->log('created', 'purchase_receipts', $receipt, null, ['receipt_number' => $receipt->receipt_number]);
 
@@ -128,10 +77,29 @@ class PurchaseReceiptController extends Controller
         return view('purchase-receipts.show', compact('purchaseReceipt'));
     }
 
-    private function nextReceiptNumber(): string
+    /**
+     * Reverses a receipt made with the wrong quantity or cost — undoes its
+     * stock and accounting effect, and reopens the PO (back to Draft if
+     * nothing else is still received against it) so staff can fix the
+     * numbers and receive again, correctly.
+     */
+    public function unpost(Request $request, PurchaseReceipt $purchaseReceipt): RedirectResponse
     {
-        $next = PurchaseReceipt::withTrashed()->count() + 1;
+        $this->authorize('unpost', $purchaseReceipt);
 
-        return 'GRN-'.str_pad((string) $next, 6, '0', STR_PAD_LEFT);
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:255']]);
+
+        try {
+            $this->receiptService->unpost($purchaseReceipt, $validated['reason']);
+        } catch (InsufficientStockException $e) {
+            return back()->with('error', "Cannot unpost: {$e->getMessage()} — some of this stock has already been used elsewhere.");
+        }
+
+        $this->accounting->voidPurchaseEntry($purchaseReceipt, $validated['reason']);
+
+        $this->auditLog->log('unposted', 'purchase_receipts', $purchaseReceipt, null, ['reason' => $validated['reason']]);
+
+        return redirect()->route('purchase-orders.show', $purchaseReceipt->purchase_order_id)
+            ->with('status', "Receipt {$purchaseReceipt->receipt_number} unposted — the purchase order is open to edit and receive again.");
     }
 }

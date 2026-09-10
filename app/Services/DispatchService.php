@@ -25,6 +25,7 @@ class DispatchService
         private readonly FcmService $fcm,
         private readonly AccountingPostingService $accounting,
         private readonly RiderTripService $trips,
+        private readonly AutoPurchaseOrderService $autoPurchase,
     ) {
     }
 
@@ -311,6 +312,13 @@ class DispatchService
             }
 
             $this->accounting->postCogsEntry($order);
+
+            // The goods have genuinely left the warehouse now — this is the
+            // right moment to also receive the purchase that covered them
+            // (see AutoPurchaseOrderService::autoReceiveForOrder), rather
+            // than requiring staff to manually walk every auto-generated PO
+            // through Submit → Approve → Receive Stock for the common case.
+            $this->autoPurchase->autoReceiveForOrder($order);
 
             $this->currentAttempt($order)?->update([
                 'status' => Order::DELIVERY_STATUS_DELIVERED,

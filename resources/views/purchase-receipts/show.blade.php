@@ -3,7 +3,14 @@
 @section('title', $purchaseReceipt->receipt_number)
 
 @section('content')
-    <h1 class="h4 mb-3">{{ $purchaseReceipt->receipt_number }}</h1>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0">{{ $purchaseReceipt->receipt_number }}</h1>
+        @can('unpost', $purchaseReceipt)
+            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#unpostModal">
+                Unpost
+            </button>
+        @endcan
+    </div>
 
     <div class="row g-3 mb-3">
         <div class="col-md-8">
@@ -70,4 +77,33 @@
             </table>
         </div>
     </div>
+
+    @can('unpost', $purchaseReceipt)
+        <div class="modal fade" id="unpostModal" tabindex="-1">
+            <div class="modal-dialog">
+                <form method="POST" action="{{ route('purchase-receipts.unpost', $purchaseReceipt) }}">
+                    @csrf
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Unpost {{ $purchaseReceipt->receipt_number }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted small">
+                                This reverses the stock this receipt added and the accounting entry it posted, then reopens
+                                its purchase order so you can fix the quantity or cost and receive it again. If this stock
+                                has already been used elsewhere, unposting will be blocked.
+                            </p>
+                            <label for="unpost-reason" class="form-label">Reason</label>
+                            <input id="unpost-reason" type="text" name="reason" class="form-control" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-danger">Unpost</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endcan
 @endsection

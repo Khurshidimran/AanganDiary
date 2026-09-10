@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function () {
     Route::post('purchase-orders/{purchase_order}/cancel', [PurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel');
 
     Route::resource('purchase-receipts', PurchaseReceiptController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('purchase-receipts/{purchaseReceipt}/unpost', [PurchaseReceiptController::class, 'unpost'])->name('purchase-receipts.unpost');
 
     Route::get('stock-balances', [StockBalanceController::class, 'index'])->name('stock-balances.index');
 
@@ -85,6 +86,7 @@ Route::middleware('auth')->group(function () {
     Route::get('orders/delivery-report', [OrderController::class, 'deliveryReport'])->name('orders.delivery-report');
 
     Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');
+    Route::get('customers/{customer}/ledger', [CustomerController::class, 'ledger'])->name('customers.ledger');
     Route::resource('customers', CustomerController::class)->except(['show']);
     Route::post('customers/{customer}/addresses', [CustomerAddressController::class, 'store'])->name('customers.addresses.store');
     Route::put('customers/{customer}/addresses/{address}', [CustomerAddressController::class, 'update'])->name('customers.addresses.update');
@@ -119,6 +121,7 @@ Route::middleware('auth')->group(function () {
     Route::post('riders/{rider}/check-out', [RiderController::class, 'checkOut'])->name('riders.check-out');
     Route::post('riders/{rider}/deactivate', [RiderController::class, 'deactivate'])->name('riders.deactivate');
     Route::get('riders/{rider}/wallet', [RiderAccountController::class, 'show'])->name('riders.wallet');
+    Route::get('riders/{rider}/wallet-ledger', [RiderAccountController::class, 'walletLedger'])->name('riders.wallet-ledger');
     Route::get('riders/{rider}/wallet/orders/{order}', [RiderAccountController::class, 'showOrderAttempts'])->name('riders.wallet.order-attempts');
     Route::get('riders/{rider}/wallet/trips/{trip}', [RiderAccountController::class, 'showTrip'])->name('riders.wallet.trip');
     Route::post('riders/{rider}/wallet/deposit-cash', [RiderWalletController::class, 'recordCashDeposit'])->name('riders.wallet.deposit-cash');

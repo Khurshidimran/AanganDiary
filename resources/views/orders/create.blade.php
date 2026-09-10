@@ -17,6 +17,15 @@
 
                 <div class="row">
                     <div class="col-md-4 mb-3">
+                        <label for="order_date" class="form-label">Order Date</label>
+                        <input type="datetime-local" id="order_date" name="order_date"
+                               class="form-control @error('order_date') is-invalid @enderror"
+                               value="{{ old('order_date', now('Asia/Karachi')->format('Y-m-d\TH:i')) }}"
+                               max="{{ now('Asia/Karachi')->format('Y-m-d\TH:i') }}">
+                        <div class="form-text">When this order was actually placed — backdate it for an order taken earlier (e.g. entering a phone order after the fact).</div>
+                        @error('order_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="col-md-4 mb-3">
                         <label for="channel_id" class="form-label">Channel</label>
                         <select id="channel_id" name="channel_id" class="form-select @error('channel_id') is-invalid @enderror" required>
                             <option value="">Select a channel</option>

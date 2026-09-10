@@ -115,6 +115,62 @@ class RiderAccountController extends Controller
         ));
     }
 
+    /**
+     * A single, focused, unified view of everything that ever moved this
+     * rider's wallet balance — COD collected, cash deposited, earnings
+     * credited, earnings paid out, and manual adjustments — in one
+     * chronological list, each showing the order it came from (and that
+     * order's type) where there is one. Deliberately separate from the
+     * busy multi-tab Rider Account page: that page's Cash Ledger tab only
+     * shows cash-related transactions (COD/deposit/adjustment) and splits
+     * earnings into a differently-shaped Earnings tab reconstructed from
+     * DeliveryAttempt rows rather than the wallet transactions themselves —
+     * exactly the kind of split that made the full picture hard to follow.
+     * Defaults to all time, not "today", so the opening/closing balance
+     * shown is never silently scoped to less than the real running total.
+     */
+    public function walletLedger(Request $request, RiderProfile $rider): View
+    {
+        $this->authorize('view', $rider);
+
+        $rider->load('user');
+
+        $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : null;
+        $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : null;
+
+        $transactions = $rider->walletTransactions()
+            ->when($dateFrom, fn ($q) => $q->whereRaw('COALESCE(transaction_date, DATE(created_at)) >= ?', [$dateFrom->toDateString()]))
+            ->when($dateTo, fn ($q) => $q->whereRaw('COALESCE(transaction_date, DATE(created_at)) <= ?', [$dateTo->toDateString()]))
+            ->oldest('created_at')
+            ->get();
+
+        $orders = Order::whereIn('id', $transactions->where('reference_type', 'orders')->pluck('reference_id'))
+            ->get(['id', 'shopify_order_number', 'order_type'])
+            ->keyBy('id');
+
+        // Opening = the balance right before this window started — found
+        // from the last transaction strictly before it, not the rider's
+        // current live balance (which could reflect activity from well
+        // after this window and would misrepresent an empty/quiet range).
+        if ($transactions->isNotEmpty()) {
+            $openingBalance = (float) $transactions->first()->balance_before;
+            $closingBalance = (float) $transactions->last()->balance_after;
+        } elseif ($dateFrom) {
+            $priorTransaction = $rider->walletTransactions()
+                ->whereRaw('COALESCE(transaction_date, DATE(created_at)) < ?', [$dateFrom->toDateString()])
+                ->latest('created_at')
+                ->first();
+            $openingBalance = (float) ($priorTransaction->balance_after ?? 0);
+            $closingBalance = $openingBalance;
+        } else {
+            // All-time view with literally zero transactions ever.
+            $openingBalance = 0.0;
+            $closingBalance = 0.0;
+        }
+
+        return view('riders.wallet-ledger', compact('rider', 'transactions', 'orders', 'dateFrom', 'dateTo', 'openingBalance', 'closingBalance'));
+    }
+
     public function showOrderAttempts(RiderProfile $rider, Order $order): View
     {
         $this->authorize('view', $rider);

@@ -25,6 +25,8 @@ class AutoPurchaseOrderService
     public function __construct(
         private readonly OrderFulfillmentService $fulfillment,
         private readonly SettingsService $settings,
+        private readonly PurchaseReceiptService $receiptService,
+        private readonly AccountingPostingService $accounting,
     ) {
     }
 
@@ -108,6 +110,50 @@ class AutoPurchaseOrderService
             }
 
             $po->items()->whereNotIn('product_variant_id', array_keys($quantities))->delete();
+        }
+    }
+
+    /**
+     * Called when an order actually gets delivered (or self-picked-up) —
+     * the goods have genuinely left, so this is the right moment to receive
+     * the stock that covered it too, rather than requiring staff to
+     * manually walk every auto-generated PO through Submit → Approve →
+     * Receive Stock for the common case. Deliberately narrow: only a PO
+     * still sitting untouched in Draft is auto-advanced — one staff already
+     * started working (submitted/approved/edited/partially received) is
+     * left alone, since that's a human actively managing it, not this.
+     * An order that fails or gets returned never reaches this method at
+     * all, so nothing here ever needs undoing for that case.
+     */
+    public function autoReceiveForOrder(Order $order): void
+    {
+        foreach ($order->purchaseOrders as $po) {
+            if ($po->status !== PurchaseOrder::STATUS_DRAFT) {
+                continue;
+            }
+
+            $po->loadMissing('items');
+
+            if ($po->items->isEmpty()) {
+                continue;
+            }
+
+            $po->update(['status' => PurchaseOrder::STATUS_APPROVED]);
+
+            $items = $po->items->map(fn ($item) => [
+                'purchase_order_item_id' => $item->id,
+                'quantity' => (float) $item->quantity_ordered,
+                'unit_cost' => (float) $item->unit_cost,
+            ])->all();
+
+            $receipt = $this->receiptService->receive(
+                purchaseOrder: $po,
+                receiptDate: $order->delivered_at ?? now(),
+                items: $items,
+                notes: "Auto-received on delivery of Order #{$order->shopify_order_number}",
+            );
+
+            $this->accounting->postPurchaseEntry($receipt);
         }
     }
 

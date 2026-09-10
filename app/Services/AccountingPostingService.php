@@ -149,6 +149,16 @@ class AccountingPostingService
         );
     }
 
+    /**
+     * Safe to call unconditionally — voidEntryFor() is a no-op when no
+     * posted purchase entry exists for this receipt (e.g. Account Mapping
+     * wasn't configured when it was received, so nothing was ever posted).
+     */
+    public function voidPurchaseEntry(PurchaseReceipt $receipt, string $reason): void
+    {
+        $this->journal->voidEntryFor('purchase_receipts', $receipt->id, $reason);
+    }
+
     public function postVendorPaymentEntry(VendorPayment $payment): ?JournalEntry
     {
         if ((float) $payment->amount <= 0 || $this->journal->hasPostedEntryFor('vendor_payments', $payment->id)) {

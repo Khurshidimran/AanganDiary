@@ -59,6 +59,11 @@
                                 View Full History
                             </a>
                         </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('riders.wallet-ledger', $rider) }}">
+                                Wallet Ledger (full, unified)
+                            </a>
+                        </li>
                         @can('rider_wallet.manage')
                             <li>
                                 <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-adjust-wallet">

@@ -36,7 +36,7 @@ class RolePermissionSeeder extends Seeder
         'units.view', 'units.create', 'units.edit', 'units.delete',
         'vendors.view', 'vendors.create', 'vendors.edit', 'vendors.delete',
         'purchase_orders.view', 'purchase_orders.create', 'purchase_orders.edit', 'purchase_orders.delete', 'purchase_orders.approve',
-        'purchase_receipts.view', 'purchase_receipts.create',
+        'purchase_receipts.view', 'purchase_receipts.create', 'purchase_receipts.unpost',
         'stock.view',
         'stock_transfers.view', 'stock_transfers.create', 'stock_transfers.edit', 'stock_transfers.delete', 'stock_transfers.approve',
         'stock_adjustments.view', 'stock_adjustments.create', 'stock_adjustments.edit', 'stock_adjustments.delete',
@@ -83,7 +83,7 @@ class RolePermissionSeeder extends Seeder
             'units.view', 'units.create', 'units.edit', 'units.delete',
             'vendors.view', 'vendors.create', 'vendors.edit', 'vendors.delete',
             'purchase_orders.view', 'purchase_orders.create', 'purchase_orders.edit', 'purchase_orders.delete', 'purchase_orders.approve',
-            'purchase_receipts.view', 'purchase_receipts.create',
+            'purchase_receipts.view', 'purchase_receipts.create', 'purchase_receipts.unpost',
             'stock.view',
             'stock_transfers.view', 'stock_transfers.create', 'stock_transfers.edit', 'stock_transfers.delete', 'stock_transfers.approve',
             'stock_adjustments.view', 'stock_adjustments.create', 'stock_adjustments.edit', 'stock_adjustments.delete',
@@ -116,7 +116,7 @@ class RolePermissionSeeder extends Seeder
         Role::findByName('Warehouse Manager')->syncPermissions([
             'warehouses.view', 'warehouses.edit',
             'products.view', 'categories.view', 'brands.view', 'units.view',
-            'purchase_orders.view', 'purchase_receipts.view', 'purchase_receipts.create',
+            'purchase_orders.view', 'purchase_receipts.view', 'purchase_receipts.create', 'purchase_receipts.unpost',
             'stock.view',
             'stock_transfers.view', 'stock_transfers.create', 'stock_transfers.edit',
             'stock_adjustments.view', 'stock_adjustments.create', 'stock_adjustments.edit', 'stock_adjustments.delete',
@@ -126,7 +126,7 @@ class RolePermissionSeeder extends Seeder
             'products.view', 'categories.view', 'brands.view', 'units.view',
             'vendors.view', 'vendors.create', 'vendors.edit',
             'purchase_orders.view', 'purchase_orders.create', 'purchase_orders.edit',
-            'purchase_receipts.view', 'purchase_receipts.create',
+            'purchase_receipts.view', 'purchase_receipts.create', 'purchase_receipts.unpost',
             'stock.view',
         ]);
 

@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\Order;
 use App\Services\AuditLogService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -94,6 +95,88 @@ class CustomerController extends Controller
         $this->auditLog->log('created', 'customers', $customer, null, $customer->only(['name', 'phone']));
 
         return redirect()->route('customers.index')->with('status', 'Customer created successfully.');
+    }
+
+    /**
+     * A single chronological statement of everything that affects what this
+     * customer owes — every order (a charge, regardless of how it's paid)
+     * and every settlement against it, running to a balance. An order paid
+     * instantly (cash/online at delivery or pickup) never creates a real
+     * OrderPayment row — that settlement is synthesized here from
+     * total - total_outstanding so it still nets out correctly rather than
+     * inflating the balance as if the order were unpaid; a genuine credit
+     * order's real OrderPayment rows (from Record Payment) are used as-is.
+     */
+    public function ledger(Request $request, Customer $customer): View
+    {
+        $this->authorize('view', $customer);
+
+        $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : null;
+        $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : null;
+
+        $orders = $customer->orders()
+            ->where('order_status', '!=', Order::ORDER_STATUS_CANCELLED)
+            ->with('payments')
+            ->get();
+
+        $rows = collect();
+
+        foreach ($orders as $order) {
+            $rows->push([
+                'date' => $order->shopify_created_at,
+                'description' => "Order #{$order->shopify_order_number}",
+                'subtitle' => str($order->order_type)->headline().' · '.str($order->payment_type)->headline(),
+                'order' => $order,
+                'debit' => (float) $order->total,
+                'credit' => 0.0,
+            ]);
+
+            if ($order->payments->isNotEmpty()) {
+                foreach ($order->payments as $payment) {
+                    $rows->push([
+                        'date' => $payment->payment_date,
+                        'description' => "Payment — Order #{$order->shopify_order_number}",
+                        'subtitle' => str($payment->method ?? 'payment')->headline().($payment->reference_number ? " · {$payment->reference_number}" : ''),
+                        'order' => $order,
+                        'debit' => 0.0,
+                        'credit' => (float) $payment->amount,
+                    ]);
+                }
+            } else {
+                $settled = (float) $order->total - (float) $order->total_outstanding;
+
+                if ($settled > 0.009) {
+                    $rows->push([
+                        'date' => $order->delivered_at ?? $order->shopify_created_at,
+                        'description' => "Paid — Order #{$order->shopify_order_number}",
+                        'subtitle' => 'Settled via '.str($order->payment_type)->headline(),
+                        'order' => $order,
+                        'debit' => 0.0,
+                        'credit' => $settled,
+                    ]);
+                }
+            }
+        }
+
+        $rows = $rows->sortBy('date')->values();
+
+        $opening = $dateFrom
+            ? $rows->filter(fn ($r) => $r['date'] < $dateFrom)->sum(fn ($r) => $r['debit'] - $r['credit'])
+            : 0.0;
+
+        $filteredRows = $rows->filter(fn ($r) => (! $dateFrom || $r['date'] >= $dateFrom) && (! $dateTo || $r['date'] <= $dateTo))->values();
+
+        $running = $opening;
+        $filteredRows = $filteredRows->map(function ($row) use (&$running) {
+            $running += $row['debit'] - $row['credit'];
+            $row['balance'] = $running;
+
+            return $row;
+        });
+
+        $closing = $running;
+
+        return view('customers.ledger', compact('customer', 'filteredRows', 'opening', 'closing', 'dateFrom', 'dateTo'));
     }
 
     public function edit(Customer $customer): View

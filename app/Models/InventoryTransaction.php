@@ -18,6 +18,7 @@ class InventoryTransaction extends Model
     use HasUuid, HasLocalizedTimestamps;
 
     public const TYPE_PURCHASE_RECEIPT = 'purchase_receipt';
+    public const TYPE_PURCHASE_RECEIPT_REVERSAL = 'purchase_receipt_reversal';
     public const TYPE_SALE = 'sale';
     public const TYPE_ORDER_ALLOCATION = 'order_allocation';
     public const TYPE_ORDER_RELEASE = 'order_release';
