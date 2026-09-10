@@ -86,6 +86,7 @@
     @can('rider_wallet.manage')
         @include('riders.account.partials._modal-cash-deposit')
         @include('riders.account.partials._modal-pay-rider')
+        @include('riders.account.partials._modal-adjust-wallet')
 
         @if ($errors->any())
             @push('scripts')
@@ -95,6 +96,8 @@
                             new bootstrap.Modal(document.getElementById('modal-cash-deposit')).show();
                         @elseif (old('payment_date') !== null)
                             new bootstrap.Modal(document.getElementById('modal-pay-rider')).show();
+                        @elseif (old('wallet_action') === 'adjustment')
+                            new bootstrap.Modal(document.getElementById('modal-adjust-wallet')).show();
                         @endif
                     });
                 </script>

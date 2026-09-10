@@ -59,6 +59,13 @@
                                 View Full History
                             </a>
                         </li>
+                        @can('rider_wallet.manage')
+                            <li>
+                                <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-adjust-wallet">
+                                    Adjust Wallet
+                                </button>
+                            </li>
+                        @endcan
                         @can('update', $rider)
                             @if ($rider->status !== \App\Models\RiderProfile::STATUS_INACTIVE)
                                 <li>
