@@ -42,6 +42,15 @@
         <div class="card-body py-2">
             <form method="GET" action="{{ route('purchase-orders.index') }}" class="row g-2 align-items-end">
                 <div class="col-md-3">
+                    <label class="form-label small mb-0">Status</label>
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        @foreach ($statusMeta as $status => $meta)
+                            <option value="{{ $status }}" @selected(request('status') === $status)>{{ $meta['label'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label class="form-label small mb-0">From</label>
                     <input type="date" name="date_from" value="{{ $dateFrom?->format('Y-m-d') }}" class="form-control form-control-sm">
                 </div>
@@ -49,14 +58,16 @@
                     <label class="form-label small mb-0">To</label>
                     <input type="date" name="date_to" value="{{ $dateTo?->format('Y-m-d') }}" class="form-control form-control-sm">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-1">
                     <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Filter</button>
                 </div>
-                @if ($dateFrom || $dateTo)
-                    <div class="col-md-2">
-                        <a href="{{ route('purchase-orders.index') }}" class="btn btn-sm btn-link">Clear</a>
-                    </div>
-                @endif
+                <div class="col-md-2">
+                    @if ($isDefaultDateRange && ! request()->filled('status'))
+                        <span class="small text-muted">Showing today by default</span>
+                    @else
+                        <a href="{{ route('purchase-orders.index') }}" class="btn btn-sm btn-link">Reset filters</a>
+                    @endif
+                </div>
             </form>
         </div>
     </div>

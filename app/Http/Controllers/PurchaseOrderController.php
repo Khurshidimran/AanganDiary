@@ -25,23 +25,35 @@ class PurchaseOrderController extends Controller
     {
         $this->authorize('viewAny', PurchaseOrder::class);
 
-        $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : null;
-        $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : null;
+        $isDefaultDateRange = ! $request->has('date_from') && ! $request->has('date_to');
 
-        $query = PurchaseOrder::with(['vendor', 'warehouse', 'items'])
+        if ($isDefaultDateRange) {
+            $dateFrom = now()->startOfDay();
+            $dateTo = now()->endOfDay();
+        } else {
+            $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : null;
+            $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : null;
+        }
+
+        $dateFilteredQuery = PurchaseOrder::with(['vendor', 'warehouse', 'items'])
             ->when($dateFrom, fn ($q) => $q->where('order_date', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->where('order_date', '<=', $dateTo));
 
-        // One card per status — count and total value — so staff can see the
-        // shape of the whole (filtered) list at a glance, not just whatever
-        // page they're currently paginated to.
-        $summary = (clone $query)->get()
+        // One card per status — count and total value — always reflects the
+        // full date-filtered set regardless of the status filter below, so
+        // staff can see the whole shape of the list while still narrowing
+        // the table to just one status.
+        $summary = (clone $dateFilteredQuery)->get()
             ->groupBy('status')
             ->map(fn ($group) => ['count' => $group->count(), 'amount' => $group->sum(fn (PurchaseOrder $po) => $po->totalCost())]);
 
-        $purchaseOrders = (clone $query)->latest('order_date')->paginate(20)->withQueryString();
+        $purchaseOrders = (clone $dateFilteredQuery)
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
+            ->latest('order_date')
+            ->paginate(20)
+            ->withQueryString();
 
-        return view('purchase-orders.index', compact('purchaseOrders', 'summary', 'dateFrom', 'dateTo'));
+        return view('purchase-orders.index', compact('purchaseOrders', 'summary', 'dateFrom', 'dateTo', 'isDefaultDateRange'));
     }
 
     public function create(): View
