@@ -18,6 +18,20 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AccountingReportController extends Controller
 {
+    /**
+     * Human labels for a journal entry's reference_type — the subtitle under
+     * each ledger row's narration (e.g. "Due to supplier" / "Purchase Order").
+     */
+    private const REFERENCE_TYPE_LABELS = [
+        'orders' => 'Sales',
+        'order_cogs' => 'Cost of Goods Sold',
+        'purchase_receipts' => 'Purchase Order',
+        'vendor_payments' => 'Purchase Payment',
+        'order_payments' => 'Customer Payment',
+        'expenses' => 'Expense',
+        'payroll_runs' => 'Payroll',
+    ];
+
     public function ledger(Request $request): View
     {
         $this->authorize('reports.financial.view');
@@ -48,10 +62,15 @@ class AccountingReportController extends Controller
                 $delta = $isDebitNormal ? ((float) $line->debit - (float) $line->credit) : ((float) $line->credit - (float) $line->debit);
                 $running += $delta;
 
+                $entry = $line->journalEntry;
+
                 return [
-                    'entry' => $line->journalEntry,
+                    'entry' => $entry,
                     'line' => $line,
-                    'balance' => $running,
+                    'balance' => $this->drCr($running, $isDebitNormal),
+                    'description' => $line->description ?: $entry->narration,
+                    'subtitle' => self::REFERENCE_TYPE_LABELS[$entry->reference_type] ?? ($entry->reference_type ? str($entry->reference_type)->headline() : 'Manual Entry'),
+                    'reference' => $this->resolveReferenceLabel($entry),
                 ];
             });
         }
@@ -61,10 +80,67 @@ class AccountingReportController extends Controller
             'account' => $account,
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
-            'openingBalance' => $openingBalance,
+            'openingBalance' => $this->drCr($openingBalance, $account?->normalBalance() === 'debit'),
             'rows' => $rows,
-            'closingBalance' => $rows->isNotEmpty() ? $rows->last()['balance'] : $openingBalance,
+            'periodDebit' => $rows->sum(fn ($r) => (float) $r['line']->debit),
+            'periodCredit' => $rows->sum(fn ($r) => (float) $r['line']->credit),
+            'closingBalance' => $this->drCr(
+                $rows->isNotEmpty() ? $rows->last()['balance']['signed'] : $openingBalance,
+                $account?->normalBalance() === 'debit',
+            ),
         ]);
+    }
+
+    /**
+     * Converts a normalized (positive = normal-direction) balance into the
+     * literal debit/credit side to display — a balance sitting in the
+     * account's own normal direction shows as that side (e.g. CR for a
+     * liability); one that's gone the other way shows as the opposite side.
+     * An exactly-zero balance is shown as "DR" by convention (nothing to
+     * attribute a side to yet), matching how most ledgers display a fresh
+     * opening balance.
+     *
+     * @return array{amount: float, label: string, signed: float}
+     */
+    private function drCr(float $normalizedAmount, ?bool $isDebitNormal): array
+    {
+        $isDebitNormal ??= true;
+
+        if (abs($normalizedAmount) < 0.005) {
+            return ['amount' => 0.0, 'label' => 'DR', 'signed' => $normalizedAmount];
+        }
+
+        $onNormalSide = $normalizedAmount >= 0;
+        $normalLabel = $isDebitNormal ? 'DR' : 'CR';
+        $oppositeLabel = $isDebitNormal ? 'CR' : 'DR';
+
+        return [
+            'amount' => abs($normalizedAmount),
+            'label' => $onNormalSide ? $normalLabel : $oppositeLabel,
+            'signed' => $normalizedAmount,
+        ];
+    }
+
+    /**
+     * Best-effort human reference number for a journal entry's source
+     * document — JournalEntry itself carries no such field, so this resolves
+     * it from whatever it's actually pointing at.
+     */
+    private function resolveReferenceLabel(JournalEntry $entry): ?string
+    {
+        if (! $entry->reference_id) {
+            return null;
+        }
+
+        return match ($entry->reference_type) {
+            'orders', 'order_cogs' => Order::find($entry->reference_id)?->shopify_order_number,
+            'purchase_receipts' => \App\Models\PurchaseReceipt::find($entry->reference_id)?->receipt_number,
+            'vendor_payments' => \App\Models\VendorPayment::find($entry->reference_id)?->reference_number,
+            'order_payments' => \App\Models\OrderPayment::find($entry->reference_id)?->reference_number,
+            'expenses' => \App\Models\Expense::find($entry->reference_id)?->reference_number,
+            'payroll_runs' => optional(\App\Models\PayrollRun::find($entry->reference_id), fn ($p) => $p->period_start->format('M Y')),
+            default => null,
+        };
     }
 
     public function trialBalance(Request $request): View
@@ -100,6 +176,51 @@ class AccountingReportController extends Controller
             'rows' => $rows,
             'totalDebit' => $rows->sum('debit'),
             'totalCredit' => $rows->sum('credit'),
+        ]);
+    }
+
+    /**
+     * There's no period-closing step in this app (no "close the books" into
+     * Retained Earnings at year-end) — a formally accurate snapshot has to
+     * roll cumulative net profit-to-date into Equity itself, or Assets would
+     * never actually equal Liabilities + Equity. That's the extra
+     * "Current Earnings (unposted)" line below, not a real ledger account.
+     */
+    public function balanceSheet(Request $request): View
+    {
+        $this->authorize('reports.financial.view');
+
+        $asOf = Carbon::parse($request->input('as_of', now()->toDateString()));
+
+        $section = fn (string $type) => Account::where('type', $type)->where('status', Account::STATUS_ACTIVE)->orderBy('code')->get()
+            ->map(fn (Account $a) => ['account' => $a, 'amount' => $a->balanceAsOf($asOf)])
+            ->filter(fn ($r) => $r['amount'] != 0)
+            ->values();
+
+        $assets = $section(Account::TYPE_ASSET);
+        $liabilities = $section(Account::TYPE_LIABILITY);
+        $equity = $section(Account::TYPE_EQUITY);
+
+        $totalRevenue = Account::where('type', Account::TYPE_REVENUE)->where('status', Account::STATUS_ACTIVE)->get()
+            ->sum(fn (Account $a) => $a->balanceAsOf($asOf));
+        $totalExpense = Account::where('type', Account::TYPE_EXPENSE)->where('status', Account::STATUS_ACTIVE)->get()
+            ->sum(fn (Account $a) => $a->balanceAsOf($asOf));
+        $currentEarnings = $totalRevenue - $totalExpense;
+
+        $totalAssets = $assets->sum('amount');
+        $totalLiabilities = $liabilities->sum('amount');
+        $totalEquity = $equity->sum('amount') + $currentEarnings;
+
+        return view('reports.balance-sheet', [
+            'asOf' => $asOf,
+            'assets' => $assets,
+            'liabilities' => $liabilities,
+            'equity' => $equity,
+            'currentEarnings' => $currentEarnings,
+            'totalAssets' => $totalAssets,
+            'totalLiabilities' => $totalLiabilities,
+            'totalEquity' => $totalEquity,
+            'isBalanced' => abs($totalAssets - ($totalLiabilities + $totalEquity)) < 0.01,
         ]);
     }
 

@@ -172,6 +172,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('reports/ledger', [AccountingReportController::class, 'ledger'])->name('reports.ledger');
     Route::get('reports/trial-balance', [AccountingReportController::class, 'trialBalance'])->name('reports.trial-balance');
+    Route::get('reports/balance-sheet', [AccountingReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
     Route::get('reports/profit-and-loss', [AccountingReportController::class, 'profitAndLoss'])->name('reports.profit-and-loss');
     Route::get('reports/profit-and-loss/export/pdf', [AccountingReportController::class, 'profitAndLossPdf'])->name('reports.profit-and-loss.export.pdf');
     Route::get('reports/profit-and-loss/export/excel', [AccountingReportController::class, 'profitAndLossExcel'])->name('reports.profit-and-loss.export.excel');

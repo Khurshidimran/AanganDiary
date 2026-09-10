@@ -275,6 +275,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a href="{{ route('reports.balance-sheet') }}" class="nav-link {{ request()->routeIs('reports.balance-sheet') ? 'active' : '' }}">
+                                <i class="bi bi-clipboard-data me-2"></i> Balance Sheet
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="{{ route('reports.receivables-aging') }}" class="nav-link {{ request()->routeIs('reports.receivables-aging') ? 'active' : '' }}">
                                 <i class="bi bi-hourglass-split me-2"></i> Receivables Aging
                             </a>
