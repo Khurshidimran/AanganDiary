@@ -40,7 +40,11 @@
                 <tbody>
                     @forelse ($revenueAccounts as $row)
                         <tr>
-                            <td>{{ $row['account']->code }} — {{ $row['account']->name }}</td>
+                            <td>
+                                <a href="#" class="pl-drill" data-src="{{ route('reports.ledger', ['account_id' => $row['account']->id, 'date_from' => $dateFrom->toDateString(), 'date_to' => $dateTo->toDateString(), 'embed' => 1]) }}" data-title="{{ $row['account']->code }} — {{ $row['account']->name }}">
+                                    {{ $row['account']->code }} — {{ $row['account']->name }}
+                                </a>
+                            </td>
                             <td class="text-end">{{ number_format($row['amount'], 2) }}</td>
                         </tr>
                     @empty
@@ -64,7 +68,11 @@
                 <tbody>
                     @forelse ($expenseAccounts as $row)
                         <tr>
-                            <td>{{ $row['account']->code }} — {{ $row['account']->name }}</td>
+                            <td>
+                                <a href="#" class="pl-drill" data-src="{{ route('reports.ledger', ['account_id' => $row['account']->id, 'date_from' => $dateFrom->toDateString(), 'date_to' => $dateTo->toDateString(), 'embed' => 1]) }}" data-title="{{ $row['account']->code }} — {{ $row['account']->name }}">
+                                    {{ $row['account']->code }} — {{ $row['account']->name }}
+                                </a>
+                            </td>
                             <td class="text-end">{{ number_format($row['amount'], 2) }}</td>
                         </tr>
                     @empty
@@ -87,4 +95,32 @@
             <span class="h5 mb-0 {{ $netProfit >= 0 ? 'text-success' : 'text-danger' }}">{{ number_format(abs($netProfit), 2) }}</span>
         </div>
     </div>
+
+    <div class="modal fade" id="drillModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="drillModalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0" style="height: 75vh;">
+                    <iframe id="drillModalFrame" src="" style="width: 100%; height: 100%; border: 0;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.querySelectorAll('.pl-drill').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.getElementById('drillModalTitle').textContent = link.dataset.title;
+                document.getElementById('drillModalFrame').src = link.dataset.src;
+                new bootstrap.Modal(document.getElementById('drillModal')).show();
+            });
+        });
+        document.getElementById('drillModal').addEventListener('hidden.bs.modal', function () {
+            document.getElementById('drillModalFrame').src = '';
+        });
+    </script>
 @endsection
