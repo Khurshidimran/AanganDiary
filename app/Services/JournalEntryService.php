@@ -157,10 +157,20 @@ class JournalEntryService
         });
     }
 
+    /**
+     * Derived from the highest existing entry_number's own numeric suffix,
+     * not a row count — a plain count() collides the moment any entry is
+     * ever deleted (e.g. a bulk historical cleanup), since the remaining
+     * rows keep their original higher numbers while the count drops below
+     * them, causing the very next insert to collide with a number that's
+     * still in use.
+     */
     private function nextEntryNumber(): string
     {
-        $next = JournalEntry::count() + 1;
+        $maxSuffix = (int) JournalEntry::query()
+            ->selectRaw('MAX(CAST(SUBSTRING(entry_number, 4) AS UNSIGNED)) as max_suffix')
+            ->value('max_suffix');
 
-        return 'JE-'.str_pad((string) $next, 6, '0', STR_PAD_LEFT);
+        return 'JE-'.str_pad((string) ($maxSuffix + 1), 6, '0', STR_PAD_LEFT);
     }
 }

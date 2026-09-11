@@ -311,6 +311,11 @@ class DispatchService
                 );
             }
 
+            // Revenue is recognized here, at actual delivery, not back at
+            // confirm — a confirmed order can still fail or be returned,
+            // and this way a sale that never truly happens never needs a
+            // reversing entry in the first place.
+            $this->accounting->postSalesEntry($order);
             $this->accounting->postCogsEntry($order);
 
             // The goods have genuinely left the warehouse now — this is the

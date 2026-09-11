@@ -8,10 +8,15 @@ use Illuminate\Database\Seeder;
 
 /**
  * One-off backfill: posts the Sales (Revenue) and COGS journal entries that
- * should have existed for every already-confirmed/delivered order but never
- * did — Shopify's auto-confirm path (ShopifyOrderSyncService::tryAutoConfirm)
+ * should have existed for every already-delivered order but never did —
+ * Shopify's auto-confirm path (ShopifyOrderSyncService::tryAutoConfirm)
  * bypassed AccountingPostingService entirely until that was fixed, so almost
- * every historical order has zero accounting impact despite being confirmed.
+ * every historical order has zero accounting impact despite being delivered.
+ *
+ * Scoped to delivered orders only (not merely confirmed) — revenue is
+ * recognized on delivery, not confirm, precisely so a confirmed order that
+ * later fails or gets returned never needed a sales entry backfilled (or
+ * reversed) in the first place. See AccountingPostingService::postSalesEntry().
  *
  * Safe to run more than once: postSalesEntry()/postCogsEntry() are both
  * idempotent (JournalEntryService::hasPostedEntryFor guards each), so an
@@ -27,7 +32,7 @@ class BackfillSalesAccountingSeeder extends Seeder
         $accounting = app(AccountingPostingService::class);
 
         $salesPosted = 0;
-        Order::where('order_status', Order::ORDER_STATUS_CONFIRMED)
+        Order::where('delivery_status', Order::DELIVERY_STATUS_DELIVERED)
             ->chunkById(200, function ($orders) use ($accounting, &$salesPosted) {
                 foreach ($orders as $order) {
                     if ($accounting->postSalesEntry($order)) {

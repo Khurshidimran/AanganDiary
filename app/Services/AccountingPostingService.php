@@ -30,6 +30,14 @@ class AccountingPostingService
     ) {
     }
 
+    /**
+     * Called at delivery (or self-pickup), not confirm — a confirmed order
+     * can still fail or be returned, and posting revenue before the sale is
+     * actually final would mean reversing it back out again whenever that
+     * happens. Dated to when it was actually delivered so revenue and its
+     * matching COGS entry always land in the same period, even if an order
+     * took a few days between being placed and delivered.
+     */
     public function postSalesEntry(Order $order): ?JournalEntry
     {
         if ((float) $order->total <= 0 || $this->journal->hasPostedEntryFor('orders', $order->id)) {
@@ -68,7 +76,7 @@ class AccountingPostingService
         return $this->journal->post(
             lines: $lines,
             type: JournalEntry::TYPE_JOURNAL,
-            entryDate: $order->shopify_created_at?->toDateString() ?? now()->toDateString(),
+            entryDate: $order->delivered_at?->toDateString() ?? $order->shopify_created_at?->toDateString() ?? now()->toDateString(),
             narration: "Sales — Order #{$order->shopify_order_number}",
             referenceType: 'orders',
             referenceId: $order->id,

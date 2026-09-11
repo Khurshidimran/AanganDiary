@@ -395,12 +395,14 @@ class OrderController extends Controller
 
         $this->auditLog->log('confirmed', 'orders', $order, null, ['order_status' => $order->order_status]);
 
-        $salesEntry = $this->accounting->postSalesEntry($order);
-        $accountingNote = $salesEntry ? '' : ' Accounting entry was not posted — finish Account Mapping setup.';
-
-        return back()->with('status', ($stockError
+        // Revenue is deliberately NOT recognized here — confirming an order
+        // is not the same as it actually being fulfilled, and a confirmed
+        // order can still fail or get returned. The sales entry only posts
+        // once the order is genuinely delivered (or self-picked-up); see
+        // DispatchService::markDelivered() / markSelfPickedUp() below.
+        return back()->with('status', $stockError
             ? "Order confirmed. Stock was not allocated: {$stockError}"
-            : 'Order confirmed and stock allocated.').$accountingNote);
+            : 'Order confirmed and stock allocated.');
     }
 
     public function cancel(Request $request, Order $order): RedirectResponse
@@ -552,6 +554,10 @@ class OrderController extends Controller
 
             $order->update($updates);
 
+            // Revenue is recognized here, at actual pickup, not back at
+            // confirm — see DispatchService::markDelivered()'s matching
+            // comment for why.
+            $this->accounting->postSalesEntry($order);
             $this->accounting->postCogsEntry($order);
 
             // The goods have genuinely left now — receive the purchase that
