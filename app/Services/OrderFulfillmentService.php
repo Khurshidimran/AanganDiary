@@ -156,10 +156,12 @@ class OrderFulfillmentService
 
         foreach ($order->items as $item) {
             foreach ($this->expandToComponents($item) as [$variant, $quantity]) {
-                if (! $variant->product->track_inventory) {
-                    continue;
-                }
-
+                // track_inventory only governs whether stock quantity moves
+                // for this variant (see allocateStock()) — it says nothing
+                // about cost. A "Deal" sold as its own non-tracked SKU (no
+                // bundle components configured, just a purchase_price set
+                // directly on it) still has a real cost and must count here;
+                // skipping it silently understated COGS for every such sale.
                 $total += (float) $variant->purchase_price * $quantity;
             }
         }
