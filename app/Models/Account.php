@@ -63,13 +63,18 @@ class Account extends Model
      * Signed so a debit-normal account (asset/expense) reads positive when
      * debits exceed credits, and a credit-normal account (liability/equity/
      * revenue) reads positive when credits exceed debits.
+     *
+     * Deliberately NOT filtered to status=posted — a voided entry must stay
+     * in the sum alongside its reversal (see JournalEntryService::void()) so
+     * the two cancel out to zero. Excluding the voided original while still
+     * counting its reversal would leave the reversal's amount uncancelled,
+     * silently skewing the balance by exactly the voided entry's amount.
      */
     public function balanceAsOf(?Carbon $date = null): float
     {
         $query = $this->lines()->whereHas(
             'journalEntry',
-            fn ($q) => $q->where('status', JournalEntry::STATUS_POSTED)
-                ->when($date, fn ($qq) => $qq->where('entry_date', '<=', $date)),
+            fn ($q) => $q->when($date, fn ($qq) => $qq->where('entry_date', '<=', $date)),
         );
 
         $debit = (float) $query->sum('debit');
@@ -82,8 +87,7 @@ class Account extends Model
     {
         $query = $this->lines()->whereHas(
             'journalEntry',
-            fn ($q) => $q->where('status', JournalEntry::STATUS_POSTED)
-                ->whereBetween('entry_date', [$from, $to]),
+            fn ($q) => $q->whereBetween('entry_date', [$from, $to]),
         );
 
         $debit = (float) $query->sum('debit');

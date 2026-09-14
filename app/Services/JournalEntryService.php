@@ -97,11 +97,21 @@ class JournalEntryService
         );
     }
 
+    /**
+     * A reversal entry (created by void(), always status=posted) is
+     * deliberately not counted as "an active entry" here — it exists only to
+     * cancel its voided original out of the balance, not to represent a real
+     * still-standing transaction. Counting it would permanently block
+     * postSalesEntry()/postCogsEntry()/etc. from ever posting a fresh
+     * corrected entry after a void, which is exactly the scenario this
+     * guard needs to allow.
+     */
     public function hasPostedEntryFor(string $referenceType, string $referenceId): bool
     {
         return JournalEntry::where('reference_type', $referenceType)
             ->where('reference_id', $referenceId)
             ->where('status', JournalEntry::STATUS_POSTED)
+            ->where('source', '!=', JournalEntry::SOURCE_REVERSAL)
             ->exists();
     }
 

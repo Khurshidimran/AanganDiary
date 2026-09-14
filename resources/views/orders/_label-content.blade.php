@@ -28,6 +28,10 @@
     @endforeach
     <div class="divider"></div>
 
+    @if ($order->shipping_total > 0)
+        <div class="row-line"><span>Delivery Charges</span><span>{{ number_format($order->shipping_total, 0) }}</span></div>
+    @endif
+
     <div class="row-line"><span>Order Total</span><span>{{ $order->currency }} {{ number_format($order->total, 2) }}</span></div>
 
     <div class="cod-box">

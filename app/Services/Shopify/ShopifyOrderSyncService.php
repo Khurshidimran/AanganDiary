@@ -130,11 +130,19 @@ class ShopifyOrderSyncService
                 'billing_address' => $payload['billing_address'] ?? null,
                 'shipping_address' => $payload['shipping_address'] ?? null,
                 'currency' => $payload['currency'] ?? null,
-                'subtotal' => $payload['subtotal_price'] ?? 0,
-                'discount_total' => $payload['total_discounts'] ?? 0,
-                'tax_total' => $payload['total_tax'] ?? 0,
+                // Shopify freezes subtotal_price/total_discounts/total_tax/
+                // total_price at their values from when the order was first
+                // placed — editing an order (e.g. removing a unit of a line
+                // item) never changes them. The post-edit reality lives in
+                // the separate current_* fields instead, which equal the
+                // originals for an order that's never been edited (hence the
+                // fallback) and reflect the edit otherwise. Shipping has no
+                // current_ variant — order edits don't touch it.
+                'subtotal' => $payload['current_subtotal_price'] ?? $payload['subtotal_price'] ?? 0,
+                'discount_total' => $payload['current_total_discounts'] ?? $payload['total_discounts'] ?? 0,
+                'tax_total' => $payload['current_total_tax'] ?? $payload['total_tax'] ?? 0,
                 'shipping_total' => $payload['total_shipping_price_set']['shop_money']['amount'] ?? 0,
-                'total' => $payload['total_price'] ?? 0,
+                'total' => $payload['current_total_price'] ?? $payload['total_price'] ?? 0,
                 // Shopify computes this precisely (accounts for deposits/partial
                 // payments); falls back to the full total for older payloads that
                 // don't send it, which preserves the previous all-or-nothing behavior.
@@ -180,15 +188,27 @@ class ShopifyOrderSyncService
             $order->items()->delete();
 
             foreach ($payload['line_items'] ?? [] as $lineItem) {
+                // current_quantity reflects any order edit (e.g. a unit
+                // removed after the fact) — quantity stays frozen at
+                // whatever was originally ordered, same reasoning as the
+                // order-level totals above. A line fully removed via editing
+                // (current_quantity 0) is dropped entirely rather than
+                // stored as a zero-quantity row.
+                $quantity = $lineItem['current_quantity'] ?? $lineItem['quantity'] ?? 1;
+
+                if ($quantity <= 0) {
+                    continue;
+                }
+
                 $order->items()->create([
                     'product_variant_id' => $this->matchVariant($lineItem)?->id,
                     'shopify_product_id' => isset($lineItem['product_id']) ? (string) $lineItem['product_id'] : null,
                     'shopify_variant_id' => isset($lineItem['variant_id']) ? (string) $lineItem['variant_id'] : null,
                     'sku' => $lineItem['sku'] ?? null,
                     'product_name' => $lineItem['name'] ?? ($lineItem['title'] ?? 'Unknown item'),
-                    'quantity' => $lineItem['quantity'] ?? 1,
+                    'quantity' => $quantity,
                     'unit_price' => $lineItem['price'] ?? 0,
-                    'total_price' => ($lineItem['price'] ?? 0) * ($lineItem['quantity'] ?? 1),
+                    'total_price' => ($lineItem['price'] ?? 0) * $quantity,
                 ]);
             }
 

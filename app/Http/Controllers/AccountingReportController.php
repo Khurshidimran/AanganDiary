@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Exports\ProfitAndLossExport;
 use App\Models\Account;
-use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\Order;
 use App\Models\Vendor;
@@ -48,9 +47,12 @@ class AccountingReportController extends Controller
         if ($account) {
             $openingBalance = $account->balanceAsOf($dateFrom->copy()->subDay());
 
+            // Not filtered to status=posted — a voided entry stays visible
+            // alongside its reversal (see Account::balanceAsOf/balanceBetween,
+            // which sum the same way) so the running balance here matches
+            // those figures exactly, and staff can see what was corrected.
             $lines = JournalEntryLine::where('account_id', $account->id)
-                ->whereHas('journalEntry', fn ($q) => $q->where('status', JournalEntry::STATUS_POSTED)
-                    ->whereBetween('entry_date', [$dateFrom, $dateTo]))
+                ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$dateFrom, $dateTo]))
                 ->with('journalEntry')
                 ->get()
                 ->sortBy(fn ($l) => $l->journalEntry->entry_date->format('Y-m-d').$l->journalEntry->entry_number);
@@ -168,9 +170,13 @@ class AccountingReportController extends Controller
                 $opening = $this->drCr($account->balanceAsOf($dateFrom->copy()->subDay()), $isDebitNormal);
                 $closing = $this->drCr($account->balanceAsOf($dateTo), $isDebitNormal);
 
+                // Not filtered to status=posted — see Account::balanceAsOf's
+                // docblock. Excluding a voided entry here while opening/
+                // closing (balanceAsOf, below) include it would make this
+                // movement column not reconcile against them.
                 $periodLines = $account->lines()->whereHas(
                     'journalEntry',
-                    fn ($q) => $q->where('status', JournalEntry::STATUS_POSTED)->whereBetween('entry_date', [$dateFrom, $dateTo]),
+                    fn ($q) => $q->whereBetween('entry_date', [$dateFrom, $dateTo]),
                 );
 
                 return [
