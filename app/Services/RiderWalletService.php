@@ -27,6 +27,7 @@ class RiderWalletService
         ?string $notes = null,
         ?string $paymentMethod = null,
         ?string $referenceNumber = null,
+        ?string $screenshotPath = null,
         ?\DateTimeInterface $transactionDate = null,
     ): RiderWalletTransaction {
         $locked = RiderProfile::where('id', $rider->id)->lockForUpdate()->first();
@@ -48,6 +49,7 @@ class RiderWalletService
             'notes' => $notes,
             'payment_method' => $paymentMethod,
             'reference_number' => $referenceNumber,
+            'screenshot_path' => $screenshotPath,
             'transaction_date' => $transactionDate,
         ]);
     }

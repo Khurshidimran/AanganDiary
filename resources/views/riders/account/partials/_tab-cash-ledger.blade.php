@@ -62,7 +62,14 @@
                         <td class="text-end {{ $tx->amount >= 0 ? 'text-success' : 'text-danger' }}">
                             {{ $tx->amount >= 0 ? '+' : '' }}Rs. {{ number_format($tx->amount, 2) }}
                         </td>
-                        <td>{{ $tx->reference_number ?? '—' }}</td>
+                        <td>
+                            {{ $tx->reference_number ?? '—' }}
+                            @if ($tx->screenshot_path)
+                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($tx->screenshot_path) }}" target="_blank" class="ms-1" title="View deposit screenshot">
+                                    <i class="bi bi-image"></i>
+                                </a>
+                            @endif
+                        </td>
                         <td class="text-end">Rs. {{ number_format($tx->balance_after, 2) }}</td>
                     </tr>
                 @empty

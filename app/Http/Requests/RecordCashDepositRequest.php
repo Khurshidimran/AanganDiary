@@ -24,6 +24,7 @@ class RecordCashDepositRequest extends FormRequest
             'deposit_date' => ['required', 'date', 'before_or_equal:today'],
             'payment_method' => ['required', Rule::in(['cash', 'bank_transfer', 'other'])],
             'reference_number' => ['nullable', 'string', 'max:60'],
+            'screenshot' => ['nullable', 'image', 'max:5120'],
             'notes' => ['nullable', 'string', 'max:500'],
         ];
     }

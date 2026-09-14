@@ -1,6 +1,6 @@
 <div class="modal fade" id="modal-cash-deposit" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
-        <form method="POST" action="{{ route('riders.wallet.deposit-cash', $rider) }}" class="modal-content">
+        <form method="POST" action="{{ route('riders.wallet.deposit-cash', $rider) }}" class="modal-content" enctype="multipart/form-data">
             @csrf
             <div class="modal-header">
                 <h5 class="modal-title">Record Cash Deposit</h5>
@@ -37,6 +37,11 @@
                 <div class="mb-2">
                     <label class="form-label small">Reference #</label>
                     <input type="text" name="reference_number" class="form-control" value="{{ old('reference_number') }}">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Screenshot <span class="text-muted">(optional)</span></label>
+                    <input type="file" name="screenshot" accept="image/*" class="form-control @error('screenshot') is-invalid @enderror">
+                    @error('screenshot') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Notes</label>

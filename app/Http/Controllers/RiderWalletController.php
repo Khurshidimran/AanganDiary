@@ -27,7 +27,11 @@ class RiderWalletController extends Controller
 
         $validated = $request->validated();
 
-        DB::transaction(function () use ($rider, $validated) {
+        $screenshotPath = $request->hasFile('screenshot')
+            ? $request->file('screenshot')->store("cash-deposits/{$rider->id}", 'public')
+            : null;
+
+        DB::transaction(function () use ($rider, $validated, $screenshotPath) {
             $this->wallet->postTransaction(
                 rider: $rider,
                 transactionType: RiderWalletTransaction::TYPE_COD_SETTLED,
@@ -35,6 +39,7 @@ class RiderWalletController extends Controller
                 notes: $validated['notes'] ?? 'Cash deposit recorded',
                 paymentMethod: $validated['payment_method'],
                 referenceNumber: $validated['reference_number'] ?? null,
+                screenshotPath: $screenshotPath,
                 transactionDate: Carbon::parse($validated['deposit_date']),
             );
         });
