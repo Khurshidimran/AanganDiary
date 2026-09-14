@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\ProfitAndLossExport;
 use App\Models\Account;
+use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\Order;
 use App\Models\Vendor;
