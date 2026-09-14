@@ -185,6 +185,8 @@ Route::middleware('auth')->group(function () {
     Route::get('reports/profit-and-loss/export/excel', [AccountingReportController::class, 'profitAndLossExcel'])->name('reports.profit-and-loss.export.excel');
     Route::get('reports/receivables-aging', [AccountingReportController::class, 'receivablesAging'])->name('reports.receivables-aging');
     Route::get('reports/payables-aging', [AccountingReportController::class, 'payablesAging'])->name('reports.payables-aging');
+    Route::get('reports/daily', [AccountingReportController::class, 'dailyReport'])->name('reports.daily');
+    Route::get('reports/daily/detail', [AccountingReportController::class, 'dailyReportDetail'])->name('reports.daily.detail');
 
     Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');

@@ -265,6 +265,11 @@
                     @endcan
                     @can('reports.financial.view')
                         <li class="nav-item">
+                            <a href="{{ route('reports.daily') }}" class="nav-link {{ request()->routeIs('reports.daily') ? 'active' : '' }}">
+                                <i class="bi bi-calendar-check me-2"></i> Daily Report
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="{{ route('reports.ledger') }}" class="nav-link {{ request()->routeIs('reports.ledger') ? 'active' : '' }}">
                                 <i class="bi bi-list-columns-reverse me-2"></i> Ledger
                             </a>

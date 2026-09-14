@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Exports\ProfitAndLossExport;
 use App\Models\Account;
+use App\Models\DeliveryAttempt;
+use App\Models\Expense;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\Order;
@@ -395,6 +397,84 @@ class AccountingReportController extends Controller
             'rows' => $rows,
             'totals' => $this->sumBuckets($rows),
         ]);
+    }
+
+    /**
+     * A day/range's operational snapshot: value actually delivered vs. value
+     * that came back returned, and expenses incurred, netted against
+     * delivered value. Scoped by delivery_attempts.completed_at — the date
+     * an outcome actually happened — rather than the order's own columns,
+     * since a returned order has no delivered_at to key off, but every
+     * attempt (delivered or returned) has a completed_at. Self-pickup orders
+     * never generate a delivery attempt and are deliberately out of scope
+     * here, same as the Dispatch Board.
+     */
+    public function dailyReport(Request $request): View
+    {
+        $this->authorize('reports.financial.view');
+
+        $dateFrom = $request->filled('date_from') ? Carbon::parse($request->query('date_from'))->startOfDay() : now()->startOfDay();
+        $dateTo = $request->filled('date_to') ? Carbon::parse($request->query('date_to'))->endOfDay() : now()->endOfDay();
+
+        $delivered = DeliveryAttempt::where('status', Order::DELIVERY_STATUS_DELIVERED)
+            ->whereBetween('completed_at', [$dateFrom, $dateTo])
+            ->with('order')
+            ->get();
+
+        $returned = DeliveryAttempt::where('status', Order::DELIVERY_STATUS_RETURNED)
+            ->whereBetween('completed_at', [$dateFrom, $dateTo])
+            ->with('order')
+            ->get();
+
+        $deliveredValue = (float) $delivered->sum(fn (DeliveryAttempt $a) => (float) ($a->order->total ?? 0));
+        $returnedValue = (float) $returned->sum(fn (DeliveryAttempt $a) => (float) ($a->order->total ?? 0));
+        $expenseValue = (float) Expense::whereBetween('expense_date', [$dateFrom, $dateTo])->sum('amount');
+
+        return view('reports.daily', [
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'deliveredCount' => $delivered->count(),
+            'deliveredValue' => $deliveredValue,
+            'returnedCount' => $returned->count(),
+            'returnedValue' => $returnedValue,
+            'expenseCount' => Expense::whereBetween('expense_date', [$dateFrom, $dateTo])->count(),
+            'expenseValue' => $expenseValue,
+            'net' => $deliveredValue - $expenseValue,
+        ]);
+    }
+
+    /**
+     * The order/expense list behind one of dailyReport()'s stat cards —
+     * rendered without app chrome (layouts.embed) so the report page can
+     * show it in an iframe popup, same pattern as reports.ledger's embed
+     * mode for the Profit & Loss drill-down.
+     */
+    public function dailyReportDetail(Request $request): View
+    {
+        $this->authorize('reports.financial.view');
+
+        $type = $request->query('type');
+        $dateFrom = Carbon::parse($request->query('date_from'))->startOfDay();
+        $dateTo = Carbon::parse($request->query('date_to'))->endOfDay();
+
+        if ($type === 'expenses') {
+            $rows = Expense::with('category', 'warehouse')
+                ->whereBetween('expense_date', [$dateFrom, $dateTo])
+                ->orderBy('expense_date')
+                ->get();
+
+            return view('reports.daily-detail-expenses', compact('rows', 'dateFrom', 'dateTo'));
+        }
+
+        $status = $type === 'returned' ? Order::DELIVERY_STATUS_RETURNED : Order::DELIVERY_STATUS_DELIVERED;
+
+        $rows = DeliveryAttempt::where('status', $status)
+            ->whereBetween('completed_at', [$dateFrom, $dateTo])
+            ->with('order', 'rider.user')
+            ->orderBy('completed_at')
+            ->get();
+
+        return view('reports.daily-detail-orders', compact('rows', 'dateFrom', 'dateTo', 'type'));
     }
 
     /**
